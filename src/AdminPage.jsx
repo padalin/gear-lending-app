@@ -80,11 +80,9 @@ function AdminPage() {
               returned: 0,
               latestBorrowTimestamp: r.timestamp,
               latestBorrower: r.borrower,
-              items: [],
             };
           }
           summaryMap[id].borrowed += item.quantity || 1;
-          summaryMap[id].items.push(item);
           if (
             !summaryMap[id].latestBorrowTimestamp ||
             (r.timestamp?.seconds || 0) > (summaryMap[id].latestBorrowTimestamp?.seconds || 0)
@@ -106,7 +104,6 @@ function AdminPage() {
               returned: 0,
               latestBorrowTimestamp: null,
               latestBorrower: "",
-              items: [],
             };
           }
           summaryMap[id].returned += item.quantity || 1;
@@ -214,11 +211,6 @@ function AdminPage() {
           <div className="space-y-4">
             {summary.map((item, idx) => {
               const pending = item.borrowed - item.returned;
-              const grouped = item.items.reduce((acc, cur) => {
-                if (!acc[cur.label]) acc[cur.label] = 0;
-                acc[cur.label] += cur.quantity || 1;
-                return acc;
-              }, {});
               return (
                 <div key={idx} className="border border-gray-700 p-4 rounded shadow-sm bg-gray-800">
                   <p className="font-semibold text-lg">{item.itemName}</p>
@@ -227,9 +219,6 @@ function AdminPage() {
                   )}
                   <p className="text-sm text-gray-400">
                     出借：{item.borrowed} ｜ 歸還：{item.returned}
-                  </p>
-                  <p className="text-sm text-gray-300">
-                    內容：{Object.entries(grouped).map(([label, qty]) => `${label} x${qty}`).join(", ")}
                   </p>
                   <p className="text-sm font-medium mt-1">
                     狀態：
@@ -265,15 +254,7 @@ function AdminPage() {
                     <td className="p-2 border border-gray-700">{d.phone}</td>
                     <td className="p-2 border border-gray-700">
                       {Array.isArray(d.items)
-                        ? Object.values(
-                            d.items.reduce((acc, item) => {
-                              if (!acc[item.label]) acc[item.label] = { label: item.label, quantity: 0 };
-                              acc[item.label].quantity += item.quantity || 1;
-                              return acc;
-                            }, {})
-                          )
-                            .map((item) => `${item.label} x${item.quantity}`)
-                            .join(", ")
+                        ? d.items.map((item) => `${item.label}${item.quantity ? ` x${item.quantity}` : ""}`).join(", ")
                         : "-"}
                     </td>
                     <td className="p-2 border border-gray-700">{d.note || "-"}</td>
