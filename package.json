@@ -1,0 +1,41 @@
+{
+  "name": "gear-lending-app",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+  "generate-version": "node scripts/generateVersion.js",
+  "dev": "npm run generate-version && vite",
+  "build": "npm run generate-version && vite build",
+  "preview": "vite preview"
+  },
+  "dependencies": {
+    "@hello-pangea/dnd": "^18.0.1",
+    "browser-image-compression": "^2.0.2",
+    "date-fns": "^4.1.0",
+    "firebase": "^11.6.0",
+    "papaparse": "^5.5.2",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "react-dropzone": "^14.3.8",
+    "react-error-boundary": "^5.0.0",
+    "react-firebase-hooks": "^5.1.1",
+    "react-router-dom": "^7.5.0",
+    "react-slick": "^0.30.3",
+    "slick-carousel": "^1.8.1"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.21.0",
+    "@types/react": "^19.0.10",
+    "@types/react-dom": "^19.0.4",
+    "@vitejs/plugin-react": "^4.3.4",
+    "autoprefixer": "^10.4.21",
+    "eslint": "^9.21.0",
+    "eslint-plugin-react-hooks": "^5.1.0",
+    "eslint-plugin-react-refresh": "^0.4.19",
+    "globals": "^15.15.0",
+    "postcss": "^8.5.3",
+    "tailwindcss": "^3.3.5",
+    "vite": "^6.2.0"
+  }
+}

@@ -1,0 +1,31 @@
+/* src/styles/global.css */
+  
+/* 強制整體深色背景與文字顏色 */
+html,
+body {
+  background-color: #0f172a; /* Tailwind slate-900 */
+  color: white;
+}
+
+/* 表單欄位元件：強制深色 */
+input,
+textarea,
+select,
+button {
+  background-color: #1e293b;  /* Tailwind slate-800 */
+  color: white;
+  border-color: #475569;      /* Tailwind slate-600 */
+}
+
+/* Placeholder 文字：較淡灰色 */
+::placeholder {
+  color: #94a3b8;             /* Tailwind slate-400 */
+}
+
+/* 偵錯：移除 safari 自動填入背景色（防止淡黃色背景） */
+input:-webkit-autofill,
+textarea:-webkit-autofill,
+select:-webkit-autofill {
+  box-shadow: 0 0 0px 1000px #1e293b inset !important;
+  -webkit-text-fill-color: white !important;
+}
