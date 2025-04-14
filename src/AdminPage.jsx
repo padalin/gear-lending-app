@@ -10,6 +10,7 @@ import Navbar from "./Navbar";
 import { useNavigate } from "react-router-dom";
 import Footer from "./Footer";
 
+
 function AdminPage() {
   const navigate = useNavigate();
   const [summary, setSummary] = useState([]);
