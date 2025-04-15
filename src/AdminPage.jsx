@@ -240,15 +240,7 @@ function AdminPage() {
                     <td className="p-2 border border-gray-700">{d.phone}</td>
                     <td className="p-2 border border-gray-700">
                       {Array.isArray(d.items)
-                        ? Object.values(
-                            d.items.reduce((acc, item) => {
-                              if (!acc[item.label]) acc[item.label] = { label: item.label, quantity: 0 };
-                              acc[item.label].quantity += item.quantity || 1;
-                              return acc;
-                            }, {})
-                          )
-                            .map((item) => `${item.label} x${item.quantity}`)
-                            .join(", ")
+                        ? d.items.map((item) => `${item.label}${item.quantity ? ` x${item.quantity}` : ""}`).join(", ")
                         : "-"}
                     </td>
                     <td className="p-2 border border-gray-700">{d.note || "-"}</td>
