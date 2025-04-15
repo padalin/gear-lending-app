@@ -31,86 +31,51 @@ function AdminPage() {
 
       const validItemIds = new Set(itemSnap.docs.map((doc) => doc.id));
 
-      const borrowMap = new Map();
-      borrowSnap.docs.forEach((doc) => {
-        const data = doc.data();
-        const key = `${data.borrower}|${data.phone}|${data.timestamp?.seconds}|${data.note || ""}`;
-        if (!borrowMap.has(key)) {
-          borrowMap.set(key, {
-            type: "出借",
-            timestamp: data.timestamp,
-            borrower: data.borrower,
-            phone: data.phone,
-            note: data.note,
-            items: [],
-          });
-        }
-        borrowMap.get(key).items.push(...(data.items || []));
-      });
+      const borrowData = borrowSnap.docs.map((doc) => ({
+        ...doc.data(),
+        id: doc.id,
+        type: "出借",
+      }));
 
-      const returnMap = new Map();
-      returnSnap.docs.forEach((doc) => {
-        const data = doc.data();
-        const key = `${data.borrower}|${data.phone}|${data.timestamp?.seconds}|${data.note || ""}`;
-        if (!returnMap.has(key)) {
-          returnMap.set(key, {
-            type: "歸還",
-            timestamp: data.timestamp,
-            borrower: data.borrower,
-            phone: data.phone,
-            note: data.note,
-            items: [],
-          });
-        }
-        returnMap.get(key).items.push(...(data.items || []));
-      });
-
-      const borrowData = Array.from(borrowMap.values());
-      const returnData = Array.from(returnMap.values());
+      const returnData = returnSnap.docs.map((doc) => ({
+        ...doc.data(),
+        id: doc.id,
+        type: "歸還",
+      }));
 
       const summaryMap = {};
       borrowData.forEach((r) => {
-        r.items.forEach((item) => {
-          const id = item.itemId;
-          if (!validItemIds.has(id)) return;
-          if (!summaryMap[id]) {
-            summaryMap[id] = {
-              itemName: item.label,
-              borrowed: 0,
-              returned: 0,
-              latestBorrowTimestamp: r.timestamp,
-              latestBorrower: r.borrower,
-              items: [],
-            };
-          }
-          summaryMap[id].borrowed += item.quantity || 1;
-          summaryMap[id].items.push(item);
-          if (
-            !summaryMap[id].latestBorrowTimestamp ||
-            (r.timestamp?.seconds || 0) > (summaryMap[id].latestBorrowTimestamp?.seconds || 0)
-          ) {
-            summaryMap[id].latestBorrowTimestamp = r.timestamp;
-            summaryMap[id].latestBorrower = r.borrower;
-          }
-        });
+        const id = r.itemId;
+        if (!validItemIds.has(id)) return;
+        if (!summaryMap[id]) {
+          summaryMap[id] = {
+            itemName: r.itemName,
+            borrowed: 0,
+            returned: 0,
+            latestBorrowTimestamp: r.timestamp,
+            latestBorrower: r.borrower,
+          };
+        }
+        summaryMap[id].borrowed += 1;
+        if (!summaryMap[id].latestBorrowTimestamp || (r.timestamp?.seconds || 0) > (summaryMap[id].latestBorrowTimestamp?.seconds || 0)) {
+          summaryMap[id].latestBorrowTimestamp = r.timestamp;
+          summaryMap[id].latestBorrower = r.borrower;
+        }
       });
 
       returnData.forEach((r) => {
-        r.items.forEach((item) => {
-          const id = item.itemId;
-          if (!validItemIds.has(id)) return;
-          if (!summaryMap[id]) {
-            summaryMap[id] = {
-              itemName: item.label,
-              borrowed: 0,
-              returned: 0,
-              latestBorrowTimestamp: null,
-              latestBorrower: "",
-              items: [],
-            };
-          }
-          summaryMap[id].returned += item.quantity || 1;
-        });
+        const id = r.itemId;
+        if (!validItemIds.has(id)) return;
+        if (!summaryMap[id]) {
+          summaryMap[id] = {
+            itemName: r.itemName,
+            borrowed: 0,
+            returned: 0,
+            latestBorrowTimestamp: null,
+            latestBorrower: "",
+          };
+        }
+        summaryMap[id].returned += 1;
       });
 
       const summaryList = Object.values(summaryMap);
@@ -123,14 +88,33 @@ function AdminPage() {
         return bTime - aTime;
       });
 
-      const allDetails = [...borrowData, ...returnData].sort((a, b) => {
+      const allDetails = [...borrowData, ...returnData];
+
+      const grouped = {};
+      allDetails.forEach((d) => {
+        const key = `${d.timestamp?.seconds}|${d.type}|${d.borrower}|${d.phone}|${d.note || ""}`;
+        if (!grouped[key]) {
+          grouped[key] = {
+            timestamp: d.timestamp,
+            type: d.type,
+            borrower: d.borrower,
+            phone: d.phone,
+            note: d.note,
+            items: [],
+          };
+        }
+        grouped[key].items.push(...(d.items || [{ label: d.itemName }]));
+      });
+
+      const groupedDetails = Object.values(grouped);
+      groupedDetails.sort((a, b) => {
         const aTime = a.timestamp?.seconds || 0;
         const bTime = b.timestamp?.seconds || 0;
         return sortDesc ? bTime - aTime : aTime - bTime;
       });
 
       setSummary(summaryList);
-      setDetails(allDetails);
+      setDetails(groupedDetails);
       setLoading(false);
     };
 
@@ -168,7 +152,6 @@ function AdminPage() {
       <main className="pt-16 px-4 max-w-6xl mx-auto"></main>
       <div className="p-6 max-w-6xl mx-auto text-white">
         <h1 className="text-2xl font-bold mb-4">管理員後台</h1>
-
         <div className="mb-4 flex flex-col sm:flex-row gap-2 sm:gap-4">
           <button
             onClick={() => handleSwitchView("summary")}
@@ -214,11 +197,6 @@ function AdminPage() {
           <div className="space-y-4">
             {summary.map((item, idx) => {
               const pending = item.borrowed - item.returned;
-              const grouped = item.items.reduce((acc, cur) => {
-                if (!acc[cur.label]) acc[cur.label] = 0;
-                acc[cur.label] += cur.quantity || 1;
-                return acc;
-              }, {});
               return (
                 <div key={idx} className="border border-gray-700 p-4 rounded shadow-sm bg-gray-800">
                   <p className="font-semibold text-lg">{item.itemName}</p>
@@ -227,9 +205,6 @@ function AdminPage() {
                   )}
                   <p className="text-sm text-gray-400">
                     出借：{item.borrowed} ｜ 歸還：{item.returned}
-                  </p>
-                  <p className="text-sm text-gray-300">
-                    內容：{Object.entries(grouped).map(([label, qty]) => `${label} x${qty}`).join(", ")}
                   </p>
                   <p className="text-sm font-medium mt-1">
                     狀態：
