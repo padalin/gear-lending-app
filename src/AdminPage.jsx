@@ -1,3 +1,6 @@
+請把概覽放回來：
+請顯示詳細列表中的器材項目且欄位依照我們稍早約定的格式：
+
 // AdminPage.jsx
 import React, { useEffect, useState } from "react";
 import { db } from "./firebase";
