@@ -31,55 +31,83 @@ function AdminPage() {
 
       const validItemIds = new Set(itemSnap.docs.map((doc) => doc.id));
 
-      const borrowData = borrowSnap.docs.map((doc) => ({
-        ...doc.data(),
-        id: doc.id,
-        type: "出借",
-      }));
+      const borrowMap = new Map();
+      borrowSnap.docs.forEach((doc) => {
+        const data = doc.data();
+        const key = `${data.borrower}|${data.phone}|${data.timestamp?.seconds}|${data.note || ""}`;
+        if (!borrowMap.has(key)) {
+          borrowMap.set(key, {
+            type: "出借",
+            timestamp: data.timestamp,
+            borrower: data.borrower,
+            phone: data.phone,
+            note: data.note,
+            items: [],
+          });
+        }
+        borrowMap.get(key).items.push(...(data.items || []));
+      });
 
-      const returnData = returnSnap.docs.map((doc) => ({
-        ...doc.data(),
-        type: "歸還",
-      }));
+      const returnMap = new Map();
+      returnSnap.docs.forEach((doc) => {
+        const data = doc.data();
+        const key = `${data.borrower}|${data.phone}|${data.timestamp?.seconds}|${data.note || ""}`;
+        if (!returnMap.has(key)) {
+          returnMap.set(key, {
+            type: "歸還",
+            timestamp: data.timestamp,
+            borrower: data.borrower,
+            phone: data.phone,
+            note: data.note,
+            items: [],
+          });
+        }
+        returnMap.get(key).items.push(...(data.items || []));
+      });
+
+      const borrowData = Array.from(borrowMap.values());
+      const returnData = Array.from(returnMap.values());
 
       const summaryMap = {};
       borrowData.forEach((r) => {
-        const id = r.itemId;
-        if (!validItemIds.has(id)) return;
-
-        if (!summaryMap[id]) {
-          summaryMap[id] = {
-            itemName: r.itemName,
-            borrowed: 0,
-            returned: 0,
-            latestBorrowTimestamp: r.timestamp,
-            latestBorrower: r.borrower,
-          };
-        }
-        summaryMap[id].borrowed += 1;
-
-        if (
-          !summaryMap[id].latestBorrowTimestamp ||
-          (r.timestamp?.seconds || 0) > (summaryMap[id].latestBorrowTimestamp?.seconds || 0)
-        ) {
-          summaryMap[id].latestBorrowTimestamp = r.timestamp;
-          summaryMap[id].latestBorrower = r.borrower;
-        }
+        r.items.forEach((item) => {
+          const id = item.itemId;
+          if (!validItemIds.has(id)) return;
+          if (!summaryMap[id]) {
+            summaryMap[id] = {
+              itemName: item.label,
+              borrowed: 0,
+              returned: 0,
+              latestBorrowTimestamp: r.timestamp,
+              latestBorrower: r.borrower,
+            };
+          }
+          summaryMap[id].borrowed += item.quantity || 1;
+          if (
+            !summaryMap[id].latestBorrowTimestamp ||
+            (r.timestamp?.seconds || 0) > (summaryMap[id].latestBorrowTimestamp?.seconds || 0)
+          ) {
+            summaryMap[id].latestBorrowTimestamp = r.timestamp;
+            summaryMap[id].latestBorrower = r.borrower;
+          }
+        });
       });
 
       returnData.forEach((r) => {
-        const id = r.itemId;
-        if (!validItemIds.has(id)) return;
-        if (!summaryMap[id]) {
-          summaryMap[id] = {
-            itemName: r.itemName,
-            borrowed: 0,
-            returned: 0,
-            latestBorrowTimestamp: null,
-            latestBorrower: "",
-          };
-        }
-        summaryMap[id].returned += 1;
+        r.items.forEach((item) => {
+          const id = item.itemId;
+          if (!validItemIds.has(id)) return;
+          if (!summaryMap[id]) {
+            summaryMap[id] = {
+              itemName: item.label,
+              borrowed: 0,
+              returned: 0,
+              latestBorrowTimestamp: null,
+              latestBorrower: "",
+            };
+          }
+          summaryMap[id].returned += item.quantity || 1;
+        });
       });
 
       const summaryList = Object.values(summaryMap);
@@ -92,7 +120,12 @@ function AdminPage() {
         return bTime - aTime;
       });
 
-      const allDetails = [...borrowData, ...returnData];
+      const allDetails = [...borrowData, ...returnData].sort((a, b) => {
+        const aTime = a.timestamp?.seconds || 0;
+        const bTime = b.timestamp?.seconds || 0;
+        return sortDesc ? bTime - aTime : aTime - bTime;
+      });
+
       setSummary(summaryList);
       setDetails(allDetails);
       setLoading(false);
@@ -116,21 +149,15 @@ function AdminPage() {
     setSortDesc((prev) => !prev);
   };
 
-  const filteredDetails = details
-    .filter((d) => {
-      const keyword = searchTerm.toLowerCase();
-      return (
-        d.itemName?.toLowerCase().includes(keyword) ||
-        d.borrower?.toLowerCase().includes(keyword) ||
-        d.phone?.toLowerCase().includes(keyword) ||
-        d.note?.toLowerCase().includes(keyword)
-      );
-    })
-    .sort((a, b) => {
-      const aTime = a.timestamp?.seconds || 0;
-      const bTime = b.timestamp?.seconds || 0;
-      return sortDesc ? bTime - aTime : aTime - bTime;
-    });
+  const filteredDetails = details.filter((d) => {
+    const keyword = searchTerm.toLowerCase();
+    return (
+      d.borrower?.toLowerCase().includes(keyword) ||
+      d.phone?.toLowerCase().includes(keyword) ||
+      d.note?.toLowerCase().includes(keyword) ||
+      d.items?.some((item) => item.label?.toLowerCase().includes(keyword))
+    );
+  });
 
   return (
     <>
@@ -210,23 +237,27 @@ function AdminPage() {
             <table className="w-full table-auto border-collapse text-white">
               <thead>
                 <tr className="bg-gray-700">
+                  <th className="p-2 border border-gray-600">時間</th>
                   <th className="p-2 border border-gray-600">類型</th>
-                  <th className="p-2 border border-gray-600">器材名稱</th>
                   <th className="p-2 border border-gray-600">姓名</th>
                   <th className="p-2 border border-gray-600">電話</th>
+                  <th className="p-2 border border-gray-600">器材內容</th>
                   <th className="p-2 border border-gray-600">備註</th>
-                  <th className="p-2 border border-gray-600">時間</th>
                 </tr>
               </thead>
               <tbody>
                 {filteredDetails.map((d, i) => (
                   <tr key={i} className="bg-gray-800 border-t border-gray-700">
+                    <td className="p-2 border border-gray-700">{formatTime(d.timestamp)}</td>
                     <td className="p-2 border border-gray-700 text-blue-400">{d.type}</td>
-                    <td className="p-2 border border-gray-700">{d.itemName}</td>
                     <td className="p-2 border border-gray-700">{d.borrower}</td>
                     <td className="p-2 border border-gray-700">{d.phone}</td>
+                    <td className="p-2 border border-gray-700">
+                      {Array.isArray(d.items)
+                        ? d.items.map((item) => `${item.label}${item.quantity ? ` x${item.quantity}` : ""}`).join(", ")
+                        : "-"}
+                    </td>
                     <td className="p-2 border border-gray-700">{d.note || "-"}</td>
-                    <td className="p-2 border border-gray-700">{formatTime(d.timestamp)}</td>
                   </tr>
                 ))}
               </tbody>
@@ -243,4 +274,3 @@ function AdminPage() {
 }
 
 export default AdminPage;
-
