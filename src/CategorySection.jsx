@@ -2,6 +2,7 @@
 import React from "react";
 import ItemCard from "./ItemCard";
 
+
 function CategorySection({ category, items, expanded, onToggle, isAdmin, onEdit, onDelete }) {
   return (
     <div className="mb-2">

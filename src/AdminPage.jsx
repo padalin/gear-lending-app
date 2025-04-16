@@ -29,7 +29,67 @@ function AdminPage() {
         getDocs(query(collection(db, "returnRecords"))),
       ]);
 
-      const validItemIds = new Set(itemSnap.docs.map((doc) => doc.id));
+      const itemMap = {};
+      itemSnap.docs.forEach((doc) => {
+        itemMap[doc.id] = doc.data();
+      });
+
+      const summaryMap = {};
+
+      borrowSnap.docs.forEach((doc) => {
+        const { itemId, borrower, itemName, timestamp, items } = doc.data();
+        const quantity = itemMap[itemId]?.quantity || 0;
+        if (!summaryMap[itemId]) {
+          summaryMap[itemId] = {
+            itemName,
+            borrowed: 0,
+            returned: 0,
+            latestBorrowTimestamp: timestamp,
+            latestBorrower: borrower,
+          };
+        }
+        const total = items?.reduce((sum, i) => sum + (i.quantity || 1), 0) || 1;
+        summaryMap[itemId].borrowed += total;
+        if (!summaryMap[itemId].latestBorrowTimestamp || (timestamp?.seconds || 0) > (summaryMap[itemId].latestBorrowTimestamp?.seconds || 0)) {
+          summaryMap[itemId].latestBorrowTimestamp = timestamp;
+          summaryMap[itemId].latestBorrower = borrower;
+        }
+      });
+
+      returnSnap.docs.forEach((doc) => {
+        const { itemId, items } = doc.data();
+        const total = items?.reduce((sum, i) => sum + (i.quantity || 1), 0) || 1;
+        if (!summaryMap[itemId]) {
+          summaryMap[itemId] = {
+            itemName: itemMap[itemId]?.label || "",
+            borrowed: 0,
+            returned: 0,
+            latestBorrowTimestamp: null,
+            latestBorrower: "",
+          };
+        }
+        summaryMap[itemId].returned += total;
+      });
+
+      const summaryList = Object.entries(summaryMap).map(([id, item]) => {
+        const quantity = itemMap[id]?.quantity || 0;
+        const borrowed = Math.min(item.borrowed, quantity);
+        const returned = Math.min(item.returned, quantity);
+        const pending = Math.max(0, Math.min(borrowed - returned, quantity));
+        return {
+          ...item,
+          borrowed,
+          returned,
+          pending,
+        };
+      });
+
+      summaryList.sort((a, b) => {
+        if ((a.pending > 0) !== (b.pending > 0)) return a.pending > 0 ? -1 : 1;
+        const aTime = a.latestBorrowTimestamp?.seconds || 0;
+        const bTime = b.latestBorrowTimestamp?.seconds || 0;
+        return bTime - aTime;
+      });
 
       const borrowData = borrowSnap.docs.map((doc) => ({
         ...doc.data(),
@@ -43,51 +103,6 @@ function AdminPage() {
         type: "歸還",
       }));
 
-      const summaryMap = {};
-      borrowData.forEach((r) => {
-        const id = r.itemId;
-        if (!validItemIds.has(id)) return;
-        if (!summaryMap[id]) {
-          summaryMap[id] = {
-            itemName: r.itemName,
-            borrowed: 0,
-            returned: 0,
-            latestBorrowTimestamp: r.timestamp,
-            latestBorrower: r.borrower,
-          };
-        }
-        summaryMap[id].borrowed += 1;
-        if (!summaryMap[id].latestBorrowTimestamp || (r.timestamp?.seconds || 0) > (summaryMap[id].latestBorrowTimestamp?.seconds || 0)) {
-          summaryMap[id].latestBorrowTimestamp = r.timestamp;
-          summaryMap[id].latestBorrower = r.borrower;
-        }
-      });
-
-      returnData.forEach((r) => {
-        const id = r.itemId;
-        if (!validItemIds.has(id)) return;
-        if (!summaryMap[id]) {
-          summaryMap[id] = {
-            itemName: r.itemName,
-            borrowed: 0,
-            returned: 0,
-            latestBorrowTimestamp: null,
-            latestBorrower: "",
-          };
-        }
-        summaryMap[id].returned += 1;
-      });
-
-      const summaryList = Object.values(summaryMap);
-      summaryList.sort((a, b) => {
-        const aPending = a.borrowed - a.returned > 0;
-        const bPending = b.borrowed - b.returned > 0;
-        if (aPending !== bPending) return aPending ? -1 : 1;
-        const aTime = a.latestBorrowTimestamp?.seconds || 0;
-        const bTime = b.latestBorrowTimestamp?.seconds || 0;
-        return bTime - aTime;
-      });
-
       const allDetails = [...borrowData, ...returnData];
 
       const grouped = {};
@@ -100,10 +115,14 @@ function AdminPage() {
             borrower: d.borrower,
             phone: d.phone,
             note: d.note,
-            items: [],
+            items: {},
           };
         }
-        grouped[key].items.push(...(d.items || [{ label: d.itemName }]));
+        const items = d.items || [{ label: d.itemName }];
+        items.forEach((item) => {
+          const label = item.label;
+          grouped[key].items[label] = (grouped[key].items[label] || 0) + (item.quantity || 1);
+        });
       });
 
       const groupedDetails = Object.values(grouped);
@@ -142,63 +161,61 @@ function AdminPage() {
       d.borrower?.toLowerCase().includes(keyword) ||
       d.phone?.toLowerCase().includes(keyword) ||
       d.note?.toLowerCase().includes(keyword) ||
-      d.items?.some((item) => item.label?.toLowerCase().includes(keyword))
+      Object.keys(d.items || {}).some((label) => label.toLowerCase().includes(keyword))
     );
   });
 
   return (
     <>
       <Navbar />
-      <main className="pt-16 px-4 max-w-6xl mx-auto"></main>
-      <div className="p-6 max-w-6xl mx-auto text-white">
-        <h1 className="text-2xl font-bold mb-4">管理員後台</h1>
-        <div className="mb-4 flex flex-col sm:flex-row gap-2 sm:gap-4">
-          <button
-            onClick={() => handleSwitchView("summary")}
-            className={`px-4 py-2 rounded ${view === "summary" ? "bg-blue-600 text-white" : "bg-black text-white border border-gray-600 hover:bg-gray-700"}`}
-          >
-            總覽模式
-          </button>
-          <button
-            onClick={() => handleSwitchView("details")}
-            className={`px-4 py-2 rounded ${view === "details" ? "bg-blue-600 text-white" : "bg-black text-white border border-gray-600 hover:bg-gray-700"}`}
-          >
-            詳細模式
-          </button>
-          <button
-            onClick={() => navigate("/admin/items")}
-            className="bg-black text-white border border-gray-600 hover:bg-gray-700 px-4 py-2 rounded"
-          >
-            編輯器材內容
-          </button>
-        </div>
-
-        {view === "details" && (
-          <div className="mb-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-            <input
-              type="text"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              placeholder="🔍 搜尋器材 / 姓名 / 電話 / 備註"
-              className="border border-gray-600 p-2 rounded w-full sm:w-80 bg-gray-800 text-white placeholder-gray-400"
-            />
+      <main className="pt-16 px-2 sm:px-4 w-full max-w-[90rem] mx-auto bg-black min-h-screen">
+        <div className="p-6 text-white font-mono">
+          <h1 className="text-2xl font-bold mb-4">管理員後台</h1>
+          <div className="mb-4 flex flex-col sm:flex-row gap-2 sm:gap-4">
             <button
-              onClick={toggleSort}
+              onClick={() => handleSwitchView("summary")}
+              className={`px-4 py-2 rounded ${view === "summary" ? "bg-blue-600 text-white" : "bg-black text-white border border-gray-600 hover:bg-gray-700"}`}
+            >
+              總覽模式
+            </button>
+            <button
+              onClick={() => handleSwitchView("details")}
+              className={`px-4 py-2 rounded ${view === "details" ? "bg-blue-600 text-white" : "bg-black text-white border border-gray-600 hover:bg-gray-700"}`}
+            >
+              詳細模式
+            </button>
+            <button
+              onClick={() => navigate("/admin/items")}
               className="bg-black text-white border border-gray-600 hover:bg-gray-700 px-4 py-2 rounded"
             >
-              依時間排序：{sortDesc ? "新 → 舊" : "舊 → 新"}
+              編輯器材內容
             </button>
           </div>
-        )}
 
-        {loading ? (
-          <p className="text-gray-400">讀取中...</p>
-        ) : view === "summary" ? (
-          <div className="space-y-4">
-            {summary.map((item, idx) => {
-              const pending = item.borrowed - item.returned;
-              return (
-                <div key={idx} className="border border-gray-700 p-4 rounded shadow-sm bg-gray-800">
+          {view === "details" && (
+            <div className="mb-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+              <input
+                type="text"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                placeholder="🔍 搜尋器材 / 姓名 / 電話 / 備註"
+                className="border border-gray-600 p-2 rounded w-full sm:w-80 bg-gray-800 text-white placeholder-gray-400"
+              />
+              <button
+                onClick={toggleSort}
+                className="bg-black text-white border border-gray-600 hover:bg-gray-700 px-4 py-2 rounded"
+              >
+                依時間排序：{sortDesc ? "新 → 舊" : "舊 → 新"}
+              </button>
+            </div>
+          )}
+
+          {loading ? (
+            <p className="text-gray-400">讀取中...</p>
+          ) : view === "summary" ? (
+            <div className="space-y-4">
+              {summary.map((item, idx) => (
+                <div key={idx} className="border border-gray-700 p-4 rounded bg-gray-800">
                   <p className="font-semibold text-lg">{item.itemName}</p>
                   {item.latestBorrower && (
                     <p className="text-sm text-gray-300">最近借用者：{item.latestBorrower}</p>
@@ -208,53 +225,46 @@ function AdminPage() {
                   </p>
                   <p className="text-sm font-medium mt-1">
                     狀態：
-                    {pending <= 0 ? (
+                    {item.pending <= 0 ? (
                       <span className="text-green-400">全部歸還</span>
                     ) : (
-                      <span className="text-red-400">尚有 {pending} 筆未歸還</span>
+                      <span className="text-red-400">尚有 {item.pending} 筆未歸還</span>
                     )}
                   </p>
                 </div>
-              );
-            })}
-          </div>
-        ) : (
-          <div className="overflow-auto">
-            <table className="w-full table-auto border-collapse text-white">
-              <thead>
-                <tr className="bg-gray-700">
-                  <th className="p-2 border border-gray-600">時間</th>
-                  <th className="p-2 border border-gray-600">類型</th>
-                  <th className="p-2 border border-gray-600">姓名</th>
-                  <th className="p-2 border border-gray-600">電話</th>
-                  <th className="p-2 border border-gray-600">器材內容</th>
-                  <th className="p-2 border border-gray-600">備註</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filteredDetails.map((d, i) => (
-                  <tr key={i} className="bg-gray-800 border-t border-gray-700">
-                    <td className="p-2 border border-gray-700">{formatTime(d.timestamp)}</td>
-                    <td className="p-2 border border-gray-700 text-blue-400">{d.type}</td>
-                    <td className="p-2 border border-gray-700">{d.borrower}</td>
-                    <td className="p-2 border border-gray-700">{d.phone}</td>
-                    <td className="p-2 border border-gray-700">
-                      {Array.isArray(d.items)
-                        ? d.items.map((item) => `${item.label}${item.quantity ? ` x${item.quantity}` : ""}`).join(", ")
-                        : "-"}
-                    </td>
-                    <td className="p-2 border border-gray-700">{d.note || "-"}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-            {filteredDetails.length === 0 && (
-              <p className="text-center text-gray-400 mt-4">查無符合資料</p>
-            )}
-          </div>
-        )}
-        <Footer />
-      </div>
+              ))}
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {filteredDetails.map((d, i) => (
+                <div key={i} className="flex border border-gray-700 rounded bg-[#111]">
+                  <div className={`w-16 sm:w-20 text-center py-4 text-sm sm:text-base text-white ${d.type === "出借" ? "bg-green-900/30" : "bg-blue-900/30"}`}>
+                    {d.type}
+                  </div>
+                  <div className="flex-1 p-4 text-sm sm:text-base">
+                    <div className="text-xs text-gray-400 mb-1">{formatTime(d.timestamp)}</div>
+                    <div className="flex justify-between items-center flex-wrap gap-x-4">
+                      <span className="text-white font-medium text-base sm:text-lg">{d.borrower}</span>
+                      <span className="text-gray-300 text-sm sm:text-base">{d.phone}</span>
+                    </div>
+                    <ul className="text-white mb-2 mt-2">
+                      {Object.entries(d.items).map(([label, count], idx) => (
+                        <li key={idx}>- {label} x{count}</li>
+                      ))}
+                    </ul>
+                    {d.note && <div className="text-gray-300 text-sm">備註：{d.note}</div>}
+                  </div>
+                </div>
+              ))}
+              {filteredDetails.length === 0 && (
+                <p className="text-center text-gray-400 mt-4">查無符合資料</p>
+              )}
+            </div>
+          )}
+
+          <Footer />
+        </div>
+      </main>
     </>
   );
 }

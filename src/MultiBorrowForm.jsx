@@ -27,24 +27,24 @@ function MultiBorrowForm() {
         getDocs(collection(db, "borrowRequests")),
         getDocs(collection(db, "returnRecords"))
       ]);
-  
+
       const borrowMap = {};
       const returnMap = {};
-  
+
       borrowSnap.docs.forEach(doc => {
         const { itemId } = doc.data();
         if (itemId) {
           borrowMap[itemId] = (borrowMap[itemId] || 0) + 1;
         }
       });
-  
+
       returnSnap.docs.forEach(doc => {
         const { itemId } = doc.data();
         if (itemId) {
           returnMap[itemId] = (returnMap[itemId] || 0) + 1;
         }
       });
-  
+
       const itemList = itemSnap.docs.map(doc => {
         const data = doc.data();
         const id = doc.id;
@@ -53,25 +53,18 @@ function MultiBorrowForm() {
         const stock = Math.max(total - borrowed, 0);
         return { id, ...data, stock };
       });
-  
+
       setItems(itemList);
-  
+
       const expanded = {};
       itemList.forEach(item => {
         expanded[item.category] = true;
       });
       setExpandedCategories(expanded);
-      
-      console.log("BORROW:", borrowMap);
-      console.log("RETURN:", returnMap);
-
-      console.log("ITEMS:", itemSnap.docs.map(d => ({ id: d.id, ...d.data() })));
-
     };
-  
+
     fetchItems();
   }, []);
-  
 
   const groupedItems = items.reduce((acc, item) => {
     const cat = item.category || "未分類";
@@ -110,12 +103,20 @@ function MultiBorrowForm() {
     }));
   };
 
+  const removeItem = id => {
+    setSelected(prev => {
+      const copy = { ...prev };
+      delete copy[id];
+      return copy;
+    });
+  };
+
   const handleInitialSubmit = e => {
     e.preventDefault();
     setError("");
 
     if (!name.trim() || !phone.trim()) {
-      setError("請填寫所有欄位");
+      setError("請填寫姓名及手機號碼");
       return;
     }
 
@@ -130,6 +131,7 @@ function MultiBorrowForm() {
     }
 
     setShowConfirm(true);
+    window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
   const handleConfirmSubmit = async () => {
@@ -165,14 +167,42 @@ function MultiBorrowForm() {
   return (
     <>
       <Navbar />
-      <main className="pt-16 px-4 max-w-6xl mx-auto">
+      <main className="pt-16 px-4 max-w-6xl mx-auto relative">
         <div className="max-w-3xl mx-auto p-6 text-black">
           <h1 className="text-2xl font-bold mb-4 text-white">借器材</h1>
 
           {error && (
-            <p className="text-red-500 mb-4 border border-red-500 p-2 rounded bg-red-900/20">
+            <p className="text-red-500 fixed top-20 left-1/2 transform -translate-x-1/2 z-50 border border-red-500 p-2 rounded bg-red-900/90">
               {error}
             </p>
+          )}
+
+          {showConfirm && (
+            <div className="p-4 border border-yellow-700 bg-black text-white rounded mt-6">
+              <p className="text-lg font-semibold mb-2">你確定要送出這些借用資料嗎？</p>
+              <p>借用人：{name}</p>
+              <p>電話：{phone}</p>
+              <p>備註：{note || "（無）"}</p>
+              <p className="mt-2 font-semibold">借用器材：</p>
+              <ul className="space-y-2 mt-2">
+                {selectedItems.map(item => (
+                  <li key={item.id} className="flex gap-3 items-center">
+                    <img src={item.images?.[0]} alt={item.label} className="w-16 h-16 object-cover rounded border border-white" />
+                    <span>{item.label} × {selected[item.id]}</span>
+                  </li>
+                ))}
+              </ul>
+              <div className="flex gap-4 mt-4">
+                <button
+                  className="bg-green-600 hover:bg-green-700 px-4 py-2 rounded text-white"
+                  onClick={handleConfirmSubmit}
+                >確認送出</button>
+                <button
+                  className="bg-gray-500 hover:bg-gray-600 px-4 py-2 rounded text-white"
+                  onClick={() => setShowConfirm(false)}
+                >取消</button>
+              </div>
+            </div>
           )}
 
           <form onSubmit={handleInitialSubmit} className="space-y-6">
@@ -266,20 +296,43 @@ function MultiBorrowForm() {
                   })}
               </div>
             ))}
+          </form>
+        </div>
 
-            <div className="flex justify-end gap-3 pt-4">
+        {!showConfirm && selectedItems.length > 0 && (
+          <div className="fixed top-20 right-4 bg-gray-900/10 backdrop-blur-md border border-white/20 rounded-lg shadow-xl p-4 inline-block text-white z-50">
+            <h2 className="font-bold mb-2">已選器材</h2>
+            <ul className="max-h-64 overflow-y-auto text-sm space-y-2">
+              {selectedItems.map(item => (
+                <li key={item.id} className="flex items-center justify-between gap-2">
+                  <img
+                    src={item.images?.[0]}
+                    alt={item.label}
+                    className="w-10 h-10 object-cover rounded border"
+                  />
+                  <span className="flex-1 text-left text-xs truncate">{item.label}</span>
+                  <span className="text-xs">× {selected[item.id]}</span>
+                  <button
+                    className="text-red-400 hover:text-red-600 text-xs ml-2"
+                    onClick={() => removeItem(item.id)}
+                  >刪除</button>
+                </li>
+              ))}
+            </ul>
+            <div className="flex justify-end gap-2 mt-3">
               <button
                 type="button"
+                className="bg-gray-600 hover:bg-gray-700 text-white text-sm px-3 py-1 rounded"
                 onClick={() => navigate("/")}
-                className="bg-gray-500 hover:bg-gray-600 px-4 py-2 rounded text-white"
               >取消</button>
               <button
                 type="submit"
-                className="bg-blue-600 hover:bg-blue-700 px-6 py-2 rounded text-white"
-              >送出借用</button>
+                className="bg-blue-600 hover:bg-blue-700 text-white text-sm px-3 py-1 rounded"
+                onClick={handleInitialSubmit}
+              >送出</button>
             </div>
-          </form>
-        </div>
+          </div>
+        )}
       </main>
       <Footer />
     </>

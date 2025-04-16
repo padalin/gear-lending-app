@@ -4,16 +4,17 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-  "generate-version": "node scripts/generateVersion.js",
-  "dev": "npm run generate-version && vite",
-  "build": "npm run generate-version && vite build",
-  "preview": "vite preview"
+    "generate-version": "node scripts/generateVersion.js",
+    "dev": "npm run generate-version && vite",
+    "build": "npm run generate-version && vite build",
+    "preview": "vite preview"
   },
   "dependencies": {
     "@hello-pangea/dnd": "^18.0.1",
     "browser-image-compression": "^2.0.2",
     "date-fns": "^4.1.0",
     "firebase": "^11.6.0",
+    "lucide-react": "^0.488.0",
     "papaparse": "^5.5.2",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",

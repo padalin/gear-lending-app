@@ -2,6 +2,7 @@
 import React, { useState, useEffect } from "react";
 import { collection, getDocs } from "firebase/firestore";
 import { db } from "./firebase";
+import { Pencil, Trash2 } from "lucide-react";
 
 function ItemCard({ item, onEdit, onDelete, isAdmin = false }) {
   const [borrowCount, setBorrowCount] = useState(0);
@@ -38,7 +39,7 @@ function ItemCard({ item, onEdit, onDelete, isAdmin = false }) {
   const showNext = () => setImgIndex((prev) => (prev + 1) % images.length);
 
   return (
-    <div className="relative flex w-full bg-black text-white rounded-xl shadow hover:shadow-lg transition overflow-hidden gap-4">
+    <div className="relative flex w-full bg-black text-white rounded-xl border border-gray-700 overflow-hidden gap-4">
       {/* Image Column */}
       <div className="relative w-3/5 cursor-pointer" onClick={() => setShowFull(true)}>
         <img
@@ -77,17 +78,25 @@ function ItemCard({ item, onEdit, onDelete, isAdmin = false }) {
       </div>
 
       {isAdmin && (
-        <div className="absolute top-2 right-2 flex gap-2">
-          <button
-            onClick={() => onEdit(item)}
-            className="bg-blue-100 text-blue-600 px-2 py-1 rounded hover:bg-blue-200 text-sm"
-          >編輯</button>
-          <button
-            onClick={() => onDelete(item)}
-            className="bg-red-100 text-red-600 px-2 py-1 rounded hover:bg-red-200 text-sm"
-          >刪除</button>
-        </div>
-      )}
+  <div className="absolute bottom-2 right-2 flex gap-2">
+    <button
+      onClick={() => onEdit(item)}
+      className="text-white hover:text-blue-400 bg-transparent hover:bg-transparent transition"
+      aria-label="編輯"
+    >
+      <Pencil size={20} />
+    </button>
+    <button
+      onClick={() => onDelete(item)}
+      className="text-white hover:text-red-400 bg-transparent hover:bg-transparent transition"
+      aria-label="刪除"
+    >
+      <Trash2 size={20} />
+    </button>
+  </div>
+)}
+
+
 
       {showFull && (
         <div

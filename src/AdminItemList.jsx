@@ -6,6 +6,7 @@ import NewItemForm from "./NewItemForm";
 import Navbar from "./Navbar";
 import CategorySection from "./CategorySection";
 import Footer from "./Footer";
+import { Pencil, Trash2 } from "lucide-react";
 
 function AdminItemList() {
   const [items, setItems] = useState([]);
@@ -150,6 +151,8 @@ function AdminItemList() {
             isAdmin
             onEdit={handleEdit}
             onDelete={handleDelete}
+            editIcon={<Pencil className="w-5 h-5 text-gray-400 hover:text-white cursor-pointer" />}
+            deleteIcon={<Trash2 className="w-5 h-5 text-gray-400 hover:text-white cursor-pointer" />}
           />
         ))}
 

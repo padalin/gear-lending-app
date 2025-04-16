@@ -52,13 +52,12 @@ function MultiReturnForm() {
         setBorrowCounts({});
         return;
       }
-  
+
       try {
         let borrowQuery;
         let returnQuery;
-  
+
         if (name.trim() && phone.trim()) {
-          // ✅ 同時比對 borrower 和 phone（嚴格比對）
           borrowQuery = query(
             collection(db, "borrowRequests"),
             where("borrower", "==", name),
@@ -76,34 +75,33 @@ function MultiReturnForm() {
           borrowQuery = query(collection(db, "borrowRequests"), where("phone", "==", phone));
           returnQuery = query(collection(db, "returnRecords"), where("phone", "==", phone));
         }
-  
+
         const [borrowSnap, returnSnap] = await Promise.all([
           getDocs(borrowQuery),
           getDocs(returnQuery),
         ]);
-  
+
         const borrowMap = {};
-  
+
         borrowSnap.docs.forEach((doc) => {
           const data = doc.data();
           borrowMap[data.itemId] = (borrowMap[data.itemId] || 0) + 1;
         });
-  
+
         returnSnap.docs.forEach((doc) => {
           const data = doc.data();
           borrowMap[data.itemId] = (borrowMap[data.itemId] || 0) - 1;
         });
-  
+
         setBorrowCounts(borrowMap);
       } catch (err) {
         console.error("查詢錯誤：", err);
         setError("查詢過程中發生錯誤，請稍後再試");
       }
     };
-  
+
     lookup();
   }, [name, phone]);
-  
 
   const groupedItems = items.reduce((acc, item) => {
     if (borrowCounts[item.id] > 0) {
@@ -142,6 +140,16 @@ function MultiReturnForm() {
   };
 
   const selectedItems = items.filter((item) => selected[item.id] > 0);
+
+  const handleSelectAll = () => {
+    const allSelected = {};
+    Object.entries(borrowCounts).forEach(([id, count]) => {
+      if (count > 0) {
+        allSelected[id] = count;
+      }
+    });
+    setSelected(allSelected);
+  };
 
   const handleInitialSubmit = (e) => {
     e.preventDefault();
@@ -197,36 +205,34 @@ function MultiReturnForm() {
       <>
         <Navbar />
         <div className="max-w-2xl mx-auto p-6 text-white">
-          <h2 className="text-xl font-bold mb-4">確認歸還資訊</h2>
-          <div className="bg-gray-800 p-4 rounded mb-4">
-            <p><strong>姓名：</strong>{name}</p>
-            <p><strong>電話：</strong>{phone}</p>
-            {note && <p><strong>備註：</strong>{note}</p>}
-          </div>
-          <div className="bg-gray-700 p-4 rounded mb-4">
-            <p className="font-semibold mb-2">歸還項目：</p>
-            <ul className="space-y-2">
-              {selectedItems.map((item) => (
-                <li key={item.id} className="flex items-center gap-3">
+          <div className="p-4 border border-yellow-700 bg-black text-white rounded mt-24">
+            <p className="text-lg font-semibold mb-2">你確定要送出這些歸還資料嗎？</p>
+            <p>借用人：{name}</p>
+            <p>電話：{phone}</p>
+            <p>備註：{note || "（無）"}</p>
+            <p className="mt-2 font-semibold">歸還器材：</p>
+            <ul className="space-y-2 mt-2">
+              {selectedItems.map(item => (
+                <li key={item.id} className="flex gap-3 items-center">
                   <img
                     src={item.images?.[0]}
                     alt={item.label}
-                    className="w-16 h-16 object-cover rounded border border-gray-600"
+                    className="w-16 h-16 object-cover rounded border border-white"
                   />
                   <span>{item.label} × {selected[item.id]}</span>
                 </li>
               ))}
             </ul>
-          </div>
-          <div className="flex gap-3 mt-6">
-            <button
-              onClick={() => setShowConfirm(false)}
-              className="bg-gray-500 hover:bg-gray-600 px-4 py-2 rounded text-white"
-            >取消返回</button>
-            <button
-              onClick={handleConfirmSubmit}
-              className="bg-green-600 hover:bg-green-700 px-4 py-2 rounded text-white"
-            >確認送出</button>
+            <div className="flex gap-4 mt-4">
+              <button
+                className="bg-green-600 hover:bg-green-700 px-4 py-2 rounded text-white"
+                onClick={handleConfirmSubmit}
+              >確認送出</button>
+              <button
+                className="bg-gray-500 hover:bg-gray-600 px-4 py-2 rounded text-white"
+                onClick={() => setShowConfirm(false)}
+              >取消</button>
+            </div>
           </div>
         </div>
       </>
@@ -280,6 +286,29 @@ function MultiReturnForm() {
               />
             </div>
 
+            <div className="flex justify-between gap-3">
+              {Object.keys(groupedItems).length > 0 && (
+                <button
+                  type="button"
+                  onClick={handleSelectAll}
+                  className="bg-yellow-600 hover:bg-yellow-700 text-white px-4 py-2 rounded"
+                >
+                  全選
+                </button>
+              )}
+              <div className="ml-auto flex gap-3">
+                <button
+                  type="button"
+                  onClick={() => navigate("/")}
+                  className="bg-gray-500 hover:bg-gray-600 px-4 py-2 rounded text-white"
+                >取消</button>
+                <button
+                  type="submit"
+                  className="bg-green-600 hover:bg-green-700 px-6 py-2 rounded text-white"
+                >送出歸還紀錄</button>
+              </div>
+            </div>
+
             <hr className="my-4 border-gray-700" />
 
             {sortedGroupEntries.map(([cat, list]) => (
@@ -330,18 +359,6 @@ function MultiReturnForm() {
                   })}
               </div>
             ))}
-
-            <div className="flex justify-end gap-3 pt-4">
-              <button
-                type="button"
-                onClick={() => navigate("/")}
-                className="bg-gray-500 hover:bg-gray-600 px-4 py-2 rounded text-white"
-              >取消</button>
-              <button
-                type="submit"
-                className="bg-green-600 hover:bg-green-700 px-6 py-2 rounded text-white"
-              >送出歸還紀錄</button>
-            </div>
           </form>
         </div>
       </main>
