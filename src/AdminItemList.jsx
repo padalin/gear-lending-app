@@ -1,6 +1,6 @@
-// AdminItemList.jsx
+// src/AdminItemList.jsx
 import React, { useEffect, useState } from "react";
-import { collection, deleteDoc, doc, onSnapshot, getDocs } from "firebase/firestore";
+import { collection, deleteDoc, doc, getDocs } from "firebase/firestore";
 import { db } from "./firebase";
 import NewItemForm from "./NewItemForm";
 import Navbar from "./Navbar";
@@ -36,7 +36,6 @@ function AdminItemList() {
         const { itemId } = doc.data();
         borrowedCount[itemId] = (borrowedCount[itemId] || 0) + 1;
       });
-
       returnSnap.docs.forEach(doc => {
         const { itemId } = doc.data();
         borrowedCount[itemId] = (borrowedCount[itemId] || 0) - 1;
@@ -105,6 +104,15 @@ function AdminItemList() {
         <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2 mb-4">
           <h1 className="text-2xl font-bold">器材管理</h1>
           <div className="flex flex-wrap gap-2">
+            {/* 新增：模板管理按鈕 */}
+            <button
+              onClick={() => (window.location.href = "/admin/templates")}
+              className="bg-black text-white border border-teal-600 hover:bg-teal-700 px-4 py-2 rounded shadow"
+            >
+              模板管理
+            </button>
+
+            {/* 既有按鈕保留 */}
             <button
               onClick={() => setShowModal(true)}
               className="bg-black text-white border border-gray-600 hover:bg-gray-700 px-4 py-2 rounded shadow"
@@ -151,8 +159,6 @@ function AdminItemList() {
             isAdmin
             onEdit={handleEdit}
             onDelete={handleDelete}
-            editIcon={<Pencil className="w-5 h-5 text-gray-400 hover:text-white cursor-pointer" />}
-            deleteIcon={<Trash2 className="w-5 h-5 text-gray-400 hover:text-white cursor-pointer" />}
           />
         ))}
 

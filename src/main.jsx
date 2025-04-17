@@ -1,7 +1,8 @@
-document.documentElement.classList.add('dark'); // 強制 Safari 加上 dark class
+// main.jsx
+// 強制 Safari（以及其他瀏覽器）套用 .dark
+document.documentElement.classList.add('dark');
 
-
-import React from "react"; // ✅ 忘了加！
+import React from "react";
 import ReactDOM from "react-dom/client";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import App from "./App.jsx";
@@ -16,9 +17,10 @@ import AdminPage from "./AdminPage.jsx";
 import NewItemForm from "./NewItemForm.jsx";
 import EditItemPage from "./EditItemPage.jsx";
 import AdminItemList from "./AdminItemList.jsx";
+import TemplateEditorPage from "./pages/TemplateEditorPage.jsx";  // ← 加這行
 import { AuthProvider } from "./AuthContext.jsx";
-import BulkAddPage from "./BulkAddPage";
-import BulkEditPage from "./BulkEditPage";
+import BulkAddPage from "./BulkAddPage.jsx";
+import BulkEditPage from "./BulkEditPage.jsx";
 import './styles/global.css';
 
 ReactDOM.createRoot(document.getElementById("root")).render(
@@ -46,6 +48,7 @@ ReactDOM.createRoot(document.getElementById("root")).render(
           <Route path="/admin/items" element={<AdminItemList />} />
           <Route path="/admin/items/new" element={<NewItemForm />} />
           <Route path="/admin/items/edit/:id" element={<EditItemPage />} />
+          <Route path="/admin/templates" element={<TemplateEditorPage />} />  {/* ← 新增模板編輯頁路由 */}
         </Routes>
       </AuthProvider>
     </BrowserRouter>
