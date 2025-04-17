@@ -63,7 +63,7 @@ function ItemForm({ initialData = {}, onSubmit, onCancel }) {
         <Input name="colour" label="Colour" value={formData.colour} onChange={handleChange} />
         <Input name="serialNumber" label="Serial Number" value={formData.serialNumber} onChange={handleChange} />
         <Input name="manufacturedDate" label="Manufactured Date" value={formData.manufacturedDate} onChange={handleChange} />
-        <Select name="covered" label="Covered" value={formData.covered} onChange={handleChange} options={["", "紙箱", "硬殼", "軟袋", "無"]} />
+        <Select name="covered" label="Covered" value={formData.covered} onChange={handleChange} options={["", "紙箱", "硬殼", "軟袋", "軟袋", "無"]} />
         <Input name="quantity" label="數量" type="number" value={formData.quantity} onChange={handleChange} required />
       </div>
 

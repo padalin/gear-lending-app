@@ -1,3 +1,23 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/* 小捲動條 */
+.scrollbar-thin {
+  scrollbar-width: thin;
+}
+.scrollbar-thumb-white\/50 {
+  scrollbar-color: rgba(255,255,255,0.5) transparent;
+}
+.scrollbar-track-transparent {
+  background: transparent;
+}
+
+/* 隱藏各瀏覽器的捲軸 */
+.hide-scrollbar {
+  -ms-overflow-style: none;  /* IE、Edge */
+  scrollbar-width: none;     /* Firefox */
+}
+.hide-scrollbar::-webkit-scrollbar {
+  display: none;             /* Chrome、Safari、Opera */
+}

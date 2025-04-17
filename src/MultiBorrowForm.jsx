@@ -272,7 +272,7 @@ function MultiBorrowForm() {
                   key={i}
                   type="button"
                   onClick={() => applyTemplate(tpl)}
-                  className="bg-gray-800 hover:bg-gray-700 border border-white/20 text-white px-3 py-1 rounded"
+                  className="bg-gray-800 hover:bg-gray-700 border border-yellow-700 text-white px-3 py-1 rounded"
                 >
                   {tpl.name}
                 </button>

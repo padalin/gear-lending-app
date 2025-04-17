@@ -1,131 +1,151 @@
-// ItemCard.jsx
-import React, { useState, useEffect } from "react";
+// src/ItemCard.jsx
+import React, { useState, useEffect, useRef } from "react";
 import { collection, getDocs } from "firebase/firestore";
 import { db } from "./firebase";
 import { Pencil, Trash2 } from "lucide-react";
 
-function ItemCard({ item, onEdit, onDelete, isAdmin = false }) {
+export default function ItemCard({ item, onEdit, onDelete, isAdmin = false }) {
   const [borrowCount, setBorrowCount] = useState(0);
   const [returnCount, setReturnCount] = useState(0);
-
   useEffect(() => {
-    const fetchBorrowData = async () => {
+    (async () => {
       try {
         const borrowSnap = await getDocs(collection(db, "borrowRequests"));
         const returnSnap = await getDocs(collection(db, "returnRecords"));
-
-        const borrowed = borrowSnap.docs.filter(doc => doc.data().itemId === item.id).length;
-        const returned = returnSnap.docs.filter(doc => doc.data().itemId === item.id).length;
-
-        setBorrowCount(borrowed);
-        setReturnCount(returned);
+        const b = borrowSnap.docs.filter(d => d.data().itemId === item.id).length;
+        const r = returnSnap.docs.filter(d => d.data().itemId === item.id).length;
+        setBorrowCount(b);
+        setReturnCount(r);
       } catch (err) {
         console.error("無法取得借還資料", err);
       }
-    };
-
-    fetchBorrowData();
+    })();
   }, [item.id]);
 
   const quantity = item.quantity || 0;
   const inStock = Math.max(quantity - (borrowCount - returnCount), 0);
   const stockText = `${inStock}/${quantity}`;
+  const isFull = inStock === quantity;
 
+  const images = Array.isArray(item.images) ? item.images : [];
   const [imgIndex, setImgIndex] = useState(0);
   const [showFull, setShowFull] = useState(false);
-  const images = Array.isArray(item.images) ? item.images : [];
 
-  const showPrev = () => setImgIndex((prev) => (prev - 1 + images.length) % images.length);
-  const showNext = () => setImgIndex((prev) => (prev + 1) % images.length);
+  const thumbRef = useRef(null);
+  const fullRef = useRef(null);
+
+  const handleThumbScroll = (e) => {
+    const scrollLeft = e.target.scrollLeft;
+    const width = e.target.clientWidth;
+    const newIndex = Math.round(scrollLeft / width);
+    setImgIndex(newIndex);
+  };
+
+  const handleFullScroll = (e) => {
+    const scrollLeft = e.target.scrollLeft;
+    const width = e.target.clientWidth;
+    const newIndex = Math.round(scrollLeft / width);
+    setImgIndex(newIndex);
+  };
+
+  useEffect(() => {
+    const thumbEl = thumbRef.current;
+    const fullEl = fullRef.current;
+    if (thumbEl) {
+      thumbEl.scrollTo({ left: imgIndex * thumbEl.clientWidth, behavior: "smooth" });
+    }
+    if (fullEl) {
+      fullEl.scrollTo({ left: imgIndex * fullEl.clientWidth, behavior: "smooth" });
+    }
+  }, [imgIndex]);
 
   return (
-    <div className="relative flex w-full bg-black text-white rounded-xl border border-gray-700 overflow-hidden gap-4">
-      {/* Image Column */}
-      <div className="relative w-3/5 cursor-pointer" onClick={() => setShowFull(true)}>
-        <img
-          src={images[imgIndex]}
-          alt={`img-${imgIndex}`}
-          className="w-full h-full object-cover"
-        />
-        {images.length > 1 && (
-          <>
-            <button
-              onClick={(e) => { e.stopPropagation(); showPrev(); }}
-              className="absolute top-1/2 left-1 -translate-y-1/2 bg-white/70 hover:bg-white text-gray-800 px-2 py-1 rounded-full text-xs"
-            >←</button>
-            <button
-              onClick={(e) => { e.stopPropagation(); showNext(); }}
-              className="absolute top-1/2 right-1 -translate-y-1/2 bg-white/70 hover:bg-white text-gray-800 px-2 py-1 rounded-full text-xs"
-            >→</button>
-          </>
-        )}
+    <div className="relative flex w-full bg-black text-white rounded-xl border border-gray-700 overflow-hidden">
+      {/* 圖片區 (左側, 3/5) */}
+      <div
+        className="flex-none w-3/5 h-full cursor-pointer flex items-center justify-end overflow-hidden relative"
+        onClick={() => setShowFull(true)}
+      >
+        <div
+          ref={thumbRef}
+          className="h-full flex overflow-x-auto scroll-smooth snap-x snap-mandatory hide-scrollbar"
+          style={{ scrollSnapType: "x mandatory" }}
+          onScroll={handleThumbScroll}
+        >
+          {images.length > 0 ? (
+            images.map((src, idx) => (
+              <img
+                key={idx}
+                src={src}
+                alt={`${item.label}-${idx}`}
+                className="flex-shrink-0 h-full w-auto object-contain snap-start"
+              />
+            ))
+          ) : (
+            <div className="h-full flex items-center justify-center bg-gray-700 text-gray-300 w-full">
+              無圖
+            </div>
+          )}
+        </div>
       </div>
 
-      {/* Info Column */}
-      <div className="w-2/5 py-3 pr-3 space-y-1 text-sm text-white">
-        <h2 className="text-base font-semibold text-white">{item.label}</h2>
-        <p>分類：{item.category}</p>
-        {item.brand && <p>品牌：{item.brand}</p>}
-        {item.model && <p>型號：{item.model}</p>}
-        {item.class && <p>類別：{item.class}</p>}
-        {item.colour && <p>顏色：{item.colour}</p>}
-        {item.serialNumber && <p>序號：{item.serialNumber}</p>}
-        {item.manufacturedDate && <p>製造日期：{item.manufacturedDate}</p>}
-        <p className="font-medium">在庫：{stockText}</p>
-        {item.covered && <p>包覆：{item.covered}</p>}
-        {item.remarksA && <p>備註 A：{item.remarksA}</p>}
-        {item.remarksB && <p>備註 B：{item.remarksB}</p>}
+      {/* 分隔區 (中線) */}
+      <div className="w-4 bg-gray-700" />
+
+      {/* 資訊區 (右側, 2/5) */}
+      <div className="flex-none w-2/5 h-full overflow-y-auto">
+        <div className="pl-4 pr-2 pt-3 text-sm">
+          <h2 className="text-base font-semibold mb-2">{item.label}</h2>
+          <p className="font-light">分類：{item.category}</p>
+          {item.brand && <p className="font-light">品牌：{item.brand}</p>}
+          {item.model && <p className="font-light">型號：{item.model}</p>}
+          {item.class && <p className="font-light">類別：{item.class}</p>}
+          {item.colour && <p className="font-light">顏色：{item.colour}</p>}
+          {item.serialNumber && <p className="font-light">序號：{item.serialNumber}</p>}
+          {item.manufacturedDate && <p className="font-light">製造日期：{item.manufacturedDate}</p>}
+          <p className={`font-light ${isFull ? 'text-green-500' : 'text-red-500'}`}>在庫：{stockText}</p>
+          {item.covered && <p className="font-light">包覆：{item.covered}</p>}
+          {item.remarksA && <p className="font-light">備註 A：{item.remarksA}</p>}
+          {item.remarksB && <p className="font-light">備註 B：{item.remarksB}</p>}
+        </div>
       </div>
 
+      {/* 管理者按鈕 */}
       {isAdmin && (
-  <div className="absolute bottom-2 right-2 flex gap-2">
-    <button
-      onClick={() => onEdit(item)}
-      className="text-white hover:text-blue-400 bg-transparent hover:bg-transparent transition"
-      aria-label="編輯"
-    >
-      <Pencil size={20} />
-    </button>
-    <button
-      onClick={() => onDelete(item)}
-      className="text-white hover:text-red-400 bg-transparent hover:bg-transparent transition"
-      aria-label="刪除"
-    >
-      <Trash2 size={20} />
-    </button>
-  </div>
-)}
+        <div className="absolute bottom-2 right-2 flex gap-2">
+          <button onClick={() => onEdit(item)} className="text-white hover:text-blue-400">
+            <Pencil size={20} />
+          </button>
+          <button onClick={() => onDelete(item)} className="text-white hover:text-red-400">
+            <Trash2 size={20} />
+          </button>
+        </div>
+      )}
 
-
-
+      {/* Lightbox 大圖模式 */}
       {showFull && (
         <div
-          className="fixed inset-0 bg-black bg-opacity-90 z-50 flex items-center justify-center"
+          className="fixed inset-0 bg-black bg-opacity-90 flex items-center justify-center z-50 p-4"
           onClick={() => setShowFull(false)}
         >
-          <div className="relative max-w-full max-h-full w-[90%] h-[80%] flex items-center justify-center">
-            <img
-              src={images[imgIndex]}
-              alt="preview"
-              className="max-w-full max-h-full object-contain"
-            />
-            {images.length > 1 && (
-              <>
-                <button
-                  onClick={(e) => { e.stopPropagation(); showPrev(); }}
-                  className="absolute left-4 top-1/2 transform -translate-y-1/2 bg-white/80 px-3 py-2 rounded-full"
-                >←</button>
-                <button
-                  onClick={(e) => { e.stopPropagation(); showNext(); }}
-                  className="absolute right-4 top-1/2 transform -translate-y-1/2 bg-white/80 px-3 py-2 rounded-full"
-                >→</button>
-              </>
-            )}
+          <div
+            ref={fullRef}
+            className="relative w-full max-w-[90vw] max-h-[90vh] flex overflow-x-auto scroll-smooth snap-x snap-mandatory hide-scrollbar"
+            style={{ scrollSnapType: "x mandatory" }}
+            onScroll={handleFullScroll}
+            onClick={e => e.stopPropagation()}
+          >
+            {images.map((src, idx) => (
+              <img
+                key={idx}
+                src={src}
+                alt={`${item.label}-full-${idx}`}
+                className="flex-shrink-0 max-w-full max-h-full m-auto object-contain snap-start"
+              />
+            ))}
           </div>
         </div>
       )}
     </div>
   );
 }
-
-export default ItemCard;
