@@ -1,24 +1,25 @@
+// src/BulkAddPage.jsx
 import React, { useState } from "react";
 import Papa from "papaparse";
-import { db } from "./firebase";
 import { collection, addDoc } from "firebase/firestore";
+import { db } from "./firebase";
 import Navbar from "./Navbar";
 import Footer from "./Footer";
-
-const requiredFields = ["label", "category", "quantity"];
+import ImageUploader from "./ImageUploader";
 
 function BulkAddPage() {
   const [items, setItems] = useState([]);
   const [error, setError] = useState("");
+  // 每列的上傳狀態
+  const [uploadingMap, setUploadingMap] = useState({});
 
-  const handleFileUpload = (e) => {
+  const handleFileUpload = e => {
     const file = e.target.files[0];
     if (!file) return;
-
     Papa.parse(file, {
       header: true,
-      complete: (results) => {
-        const parsed = results.data.map((row) => ({
+      complete: results => {
+        const parsed = results.data.map(row => ({
           label: row["Label C"]?.trim() || "",
           category: row["Instrument & Photo"]?.trim() || "",
           brand: row["Brand"]?.trim() || "",
@@ -31,46 +32,50 @@ function BulkAddPage() {
           remarksA: row["Remarks"]?.trim() || "",
           remarksB: row["Remarks.1"]?.trim() || "",
           quantity: 1,
+          images: [] // 一開始沒有圖片
         }));
         setItems(parsed);
       },
-      error: (err) => {
+      error: err => {
         console.error("CSV parse error", err);
         setError("CSV 讀取錯誤，請確認格式");
-      },
+      }
     });
   };
 
   const handleChange = (index, field, value) => {
     const updated = [...items];
-    updated[index][field] = field === "quantity" ? parseInt(value) || 1 : value;
+    updated[index][field] = field === "quantity" ? parseInt(value, 10) || 1 : value;
+    setItems(updated);
+  };
+
+  const handleImagesChange = (index, newImages) => {
+    const updated = [...items];
+    updated[index].images = newImages;
     setItems(updated);
   };
 
   const addEmptyRow = () => {
-    setItems([...items, { label: "", category: "", quantity: 1 }]);
+    setItems([...items, { label: "", category: "", quantity: 1, images: [] }]);
   };
 
-  const removeRow = (index) => {
+  const removeRow = index => {
     setItems(items.filter((_, i) => i !== index));
   };
 
   const handleSubmit = async () => {
     setError("");
-    const validItems = items.filter(
-      (item) => item.label && item.category && item.quantity > 0
-    );
+    const validItems = items.filter(item => item.label && item.category && item.quantity > 0);
     if (validItems.length === 0) {
       setError("請至少填寫一筆有效資料（Label、Category 與數量）");
       return;
     }
-
     try {
       for (const item of validItems) {
-        const clean = Object.fromEntries(
-          Object.entries(item).filter(([_, v]) => v !== "")
-        );
-        await addDoc(collection(db, "items"), clean);
+        const { images, ...rest } = item;
+        const payload = { ...rest };
+        if (images && images.length) payload.images = images;
+        await addDoc(collection(db, "items"), payload);
       }
       alert("新增成功！");
       setItems([]);
@@ -83,7 +88,7 @@ function BulkAddPage() {
   return (
     <div className="min-h-screen bg-gray-950 text-white">
       <Navbar />
-      <main className="pt-20 px-4 max-w-5xl mx-auto">
+      <main className="pt-20 px-4 max-w-5xl mx-auto pb-24">
         <h1 className="text-2xl font-bold mb-4">📦 批次新增器材</h1>
 
         <div className="mb-6">
@@ -121,6 +126,7 @@ function BulkAddPage() {
                 <th className="p-2">Covered</th>
                 <th className="p-2">Remarks A</th>
                 <th className="p-2">Remarks B</th>
+                <th className="p-2">Images</th>
                 <th className="p-2">操作</th>
               </tr>
             </thead>
@@ -128,28 +134,31 @@ function BulkAddPage() {
               {items.map((item, idx) => (
                 <tr key={idx} className="border-t border-gray-700">
                   {[
-                    "label",
-                    "category",
-                    "quantity",
-                    "brand",
-                    "model",
-                    "class",
-                    "colour",
-                    "serialNumber",
-                    "manufacturedDate",
-                    "covered",
-                    "remarksA",
-                    "remarksB",
-                  ].map((field) => (
+                    "label","category","quantity",
+                    "brand","model","class","colour",
+                    "serialNumber","manufacturedDate",
+                    "covered","remarksA","remarksB"
+                  ].map(field => (
                     <td key={field} className="p-1">
                       <input
                         type={field === "quantity" ? "number" : "text"}
                         value={item[field] || ""}
-                        onChange={(e) => handleChange(idx, field, e.target.value)}
+                        onChange={e => handleChange(idx, field, e.target.value)}
                         className="w-full p-1 bg-gray-800 text-white border border-gray-600 rounded"
                       />
                     </td>
                   ))}
+
+                  <td className="p-1">
+                    <ImageUploader
+                      images={item.images || []}
+                      setImages={imgs => handleImagesChange(idx, imgs)}
+                      setUploading={up =>
+                        setUploadingMap(prev => ({ ...prev, [idx]: up }))
+                      }
+                    />
+                  </td>
+
                   <td className="text-center">
                     <button
                       onClick={() => removeRow(idx)}
@@ -160,9 +169,10 @@ function BulkAddPage() {
                   </td>
                 </tr>
               ))}
+
               {items.length === 0 && (
                 <tr>
-                  <td colSpan={13} className="text-center py-4 text-gray-500">
+                  <td colSpan={15} className="text-center py-4 text-gray-500">
                     尚未輸入任何資料
                   </td>
                 </tr>
@@ -173,7 +183,8 @@ function BulkAddPage() {
 
         <button
           onClick={handleSubmit}
-          className="mt-6 px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded"
+          disabled={Object.values(uploadingMap).some(x => x)}
+          className="mt-6 px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded disabled:opacity-50"
         >
           批次新增
         </button>

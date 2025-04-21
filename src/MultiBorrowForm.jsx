@@ -38,17 +38,28 @@ function MultiBorrowForm() {
         getDocs(collection(db, "returnRecords")),
       ]);
 
+      // 統計借出數量
       const borrowMap = {};
       borrowSnap.docs.forEach(d => {
         const { itemId } = d.data();
         borrowMap[itemId] = (borrowMap[itemId] || 0) + 1;
       });
+
+      // 統計歸還數量（處理群組與單筆兩種格式）
       const returnMap = {};
       returnSnap.docs.forEach(d => {
-        const { itemId } = d.data();
-        returnMap[itemId] = (returnMap[itemId] || 0) + 1;
+        const data = d.data();
+        if (Array.isArray(data.items)) {
+          data.items.forEach(entry => {
+            returnMap[entry.itemId] = (returnMap[entry.itemId] || 0) + (entry.quantity || 1);
+          });
+        } else {
+          const { itemId } = data;
+          returnMap[itemId] = (returnMap[itemId] || 0) + 1;
+        }
       });
 
+      // 計算最終在庫
       const list = itemSnap.docs.map(d => {
         const data = d.data();
         const id = d.id;
@@ -60,9 +71,11 @@ function MultiBorrowForm() {
 
       setItems(list);
 
-      // 全部分類預設展開
+      // 預設展開所有分類
       const exp = {};
-      list.forEach(it => exp[it.category] = true);
+      list.forEach(it => {
+        exp[it.category] = true;
+      });
       setExpandedCategories(exp);
     })();
   }, []);
@@ -73,8 +86,10 @@ function MultiBorrowForm() {
     (acc[cat] ||= []).push(it);
     return acc;
   }, {});
+
   const filterItem = it =>
     `${it.label} ${it.brand} ${it.model}`.toLowerCase().includes(searchTerm.toLowerCase());
+
   const sortedGroupEntries = Object.entries(groupedItems)
     .map(([cat, list]) => [
       cat,
@@ -88,32 +103,29 @@ function MultiBorrowForm() {
       return (ai === -1 ? 999 : ai) - (bi === -1 ? 999 : bi);
     });
 
-    const selectedItems = items
-  .filter(it => selected[it.id] > 0)
-  .sort((a, b) => {
-    // 先依 categoryOrder 排序
-    const ai = categoryOrder.indexOf(a.category);
-    const bi = categoryOrder.indexOf(b.category);
-    const idxA = ai === -1 ? 999 : ai;
-    const idxB = bi === -1 ? 999 : bi;
-    if (idxA !== idxB) return idxA - idxB;
-    // 同 category 再依 label 英數升冪
-    return a.label.localeCompare(b.label, "en-u-kn");
-  });
+  // 已選清單
+  const selectedItems = items
+    .filter(it => selected[it.id] > 0)
+    .sort((a, b) => {
+      const ai = categoryOrder.indexOf(a.category);
+      const bi = categoryOrder.indexOf(b.category);
+      if (ai !== bi) return (ai === -1 ? 999 : ai) - (bi === -1 ? 999 : bi);
+      return a.label.localeCompare(b.label, "en-u-kn");
+    });
 
-  
-
-  // 增／減／移除
+  // 增減選擇數量
   const incrementQty = (id, max) => setSelected(prev => ({
     ...prev,
-    [id]: Math.min((prev[id]||0) + 1, max)
+    [id]: Math.min((prev[id] || 0) + 1, max)
   }));
   const decrementQty = id => setSelected(prev => ({
     ...prev,
-    [id]: Math.max((prev[id]||0) - 1, 0)
+    [id]: Math.max((prev[id] || 0) - 1, 0)
   }));
   const removeItem = id => setSelected(prev => {
-    const c = { ...prev }; delete c[id]; return c;
+    const copy = { ...prev };
+    delete copy[id];
+    return copy;
   });
 
   // 套用模板
@@ -169,6 +181,7 @@ function MultiBorrowForm() {
     }
   };
 
+  // 切換分類展開
   const toggleCategory = cat => {
     setExpandedCategories(prev => ({ ...prev, [cat]: !prev[cat] }));
   };
@@ -182,14 +195,14 @@ function MultiBorrowForm() {
 
           {/* 錯誤提示 */}
           {error && (
-            <p className="text-red-500 fixed top-20 left-1/2 transform -translate-x-1/2 z-50 border border-red-500 p-2 rounded bg-red-900/90">
+            <p className="text-red-500 fixed top-20 left-1/2 transform -translate-x-1/2 bg-red-900/90 border border-red-500 rounded px-4 py-2 z-50">
               {error}
             </p>
           )}
 
-          {/* 再次確認（移除 重置 按鈕） */}
+          {/* 確認送出 */}
           {showConfirm && (
-            <div className="p-4 border border-yellow-700 bg-black text-white rounded mt-6">
+            <div className="border border-yellow-700 bg-black p-4 rounded mb-6 text-white">
               <p className="text-lg font-semibold mb-2">你確定要送出這些借用資料嗎？</p>
               <p>借用人：{name}</p>
               <p>電話：{phone}</p>
@@ -198,24 +211,14 @@ function MultiBorrowForm() {
               <ul className="space-y-2 mt-2">
                 {selectedItems.map(it => (
                   <li key={it.id} className="flex gap-3 items-center">
-                    <img
-                      src={it.images?.[0]}
-                      alt={it.label}
-                      className="w-16 h-16 object-cover rounded border border-white"
-                    />
+                    <img src={it.images?.[0]} alt={it.label} className="w-16 h-16 object-cover rounded border border-white" />
                     <span>{it.label} × {selected[it.id]}</span>
                   </li>
                 ))}
               </ul>
               <div className="flex justify-end gap-2 mt-3">
-                <button
-                  className="bg-gray-600 hover:bg-gray-700 text-white text-sm px-3 py-1 rounded"
-                  onClick={() => setShowConfirm(false)}
-                >取消</button>
-                <button
-                  className="bg-blue-600 hover:bg-blue-700 text-white text-sm px-3 py-1 rounded"
-                  onClick={handleConfirmSubmit}
-                >送出</button>
+                <button className="bg-gray-600 hover:bg-gray-700 text-white px-3 py-1 rounded" onClick={() => setShowConfirm(false)}>取消</button>
+                <button className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded" onClick={handleConfirmSubmit}>送出</button>
               </div>
             </div>
           )}
@@ -292,7 +295,7 @@ function MultiBorrowForm() {
                   {expandedCategories[cat] ? "▼" : "▶"} {cat}
                 </button>
                 {expandedCategories[cat] && list.map(item => {
-                  const avail = item.stock - (selected[item.id]||0);
+                  const avail = item.stock - (selected[item.id] || 0);
                   return (
                     <div key={item.id} className="flex gap-4 border-b border-gray-700 bg-gray-900 text-white p-4">
                       <div className="w-24">
@@ -313,12 +316,14 @@ function MultiBorrowForm() {
                             type="button"
                             onClick={() => decrementQty(item.id)}
                             className="bg-gray-700 text-white px-2 rounded"
+                            disabled={selected[item.id] <= 0}
                           >−</button>
-                          <span className="w-8 text-center">{selected[item.id]||0}</span>
+                          <span className="w-8 text-center">{selected[item.id] || 0}</span>
                           <button
                             type="button"
                             onClick={() => incrementQty(item.id, avail)}
                             className="bg-gray-700 text-white px-2 rounded"
+                            disabled={avail <= 0}
                           >＋</button>
                         </div>
                       </div>
@@ -330,7 +335,7 @@ function MultiBorrowForm() {
           </form>
         </div>
 
-        {/* 已選清單浮動面板（新增 重置 按鈕） */}
+        {/* 已選清單浮動面板 */}
         {!showConfirm && selectedItems.length > 0 && (
           <div className="fixed top-20 right-4 bg-gray-900/10 backdrop-blur-md border border-white/20 rounded-lg shadow-xl p-4 inline-block text-white z-50">
             <h2 className="font-bold mb-2">已選器材</h2>
@@ -351,7 +356,6 @@ function MultiBorrowForm() {
               ))}
             </ul>
             <div className="flex justify-end gap-2 mt-3">
-              {/* 重置：清空所有已選 */}
               <button
                 type="button"
                 onClick={() => setSelected({})}

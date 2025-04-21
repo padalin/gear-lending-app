@@ -7,15 +7,45 @@ import { Pencil, Trash2 } from "lucide-react";
 export default function ItemCard({ item, onEdit, onDelete, isAdmin = false }) {
   const [borrowCount, setBorrowCount] = useState(0);
   const [returnCount, setReturnCount] = useState(0);
+
   useEffect(() => {
     (async () => {
       try {
-        const borrowSnap = await getDocs(collection(db, "borrowRequests"));
-        const returnSnap = await getDocs(collection(db, "returnRecords"));
-        const b = borrowSnap.docs.filter(d => d.data().itemId === item.id).length;
-        const r = returnSnap.docs.filter(d => d.data().itemId === item.id).length;
-        setBorrowCount(b);
-        setReturnCount(r);
+        const [borrowSnap, returnSnap] = await Promise.all([
+          getDocs(collection(db, "borrowRequests")),
+          getDocs(collection(db, "returnRecords")),
+        ]);
+
+        let borrowTotal = 0;
+        borrowSnap.docs.forEach((doc) => {
+          const data = doc.data();
+          if (Array.isArray(data.items)) {
+            data.items.forEach((i) => {
+              if (i.itemId === item.id) {
+                borrowTotal += i.quantity || 1;
+              }
+            });
+          } else if (data.itemId === item.id) {
+            borrowTotal += 1;
+          }
+        });
+
+        let returnTotal = 0;
+        returnSnap.docs.forEach((doc) => {
+          const data = doc.data();
+          if (Array.isArray(data.items)) {
+            data.items.forEach((i) => {
+              if (i.itemId === item.id) {
+                returnTotal += i.quantity || 1;
+              }
+            });
+          } else if (data.itemId === item.id) {
+            returnTotal += 1;
+          }
+        });
+
+        setBorrowCount(borrowTotal);
+        setReturnCount(returnTotal);
       } catch (err) {
         console.error("無法取得借還資料", err);
       }
@@ -61,7 +91,7 @@ export default function ItemCard({ item, onEdit, onDelete, isAdmin = false }) {
 
   return (
     <div className="relative flex w-full bg-black text-white rounded-xl border border-gray-700 overflow-hidden">
-      {/* 圖片區 (左側, 3/5) */}
+      {/* 圖片區 */}
       <div
         className="flex-none w-3/5 h-full cursor-pointer flex items-center justify-end overflow-hidden relative"
         onClick={() => setShowFull(true)}
@@ -69,7 +99,6 @@ export default function ItemCard({ item, onEdit, onDelete, isAdmin = false }) {
         <div
           ref={thumbRef}
           className="h-full flex overflow-x-auto scroll-smooth snap-x snap-mandatory hide-scrollbar"
-          style={{ scrollSnapType: "x mandatory" }}
           onScroll={handleThumbScroll}
         >
           {images.length > 0 ? (
@@ -89,10 +118,9 @@ export default function ItemCard({ item, onEdit, onDelete, isAdmin = false }) {
         </div>
       </div>
 
-      {/* 分隔區 (中線) */}
       <div className="w-4 bg-gray-700" />
 
-      {/* 資訊區 (右側, 2/5) */}
+      {/* 資訊區 */}
       <div className="flex-none w-2/5 h-full overflow-y-auto">
         <div className="pl-4 pr-2 pt-3 text-sm">
           <h2 className="text-base font-semibold mb-2">{item.label}</h2>
@@ -122,7 +150,7 @@ export default function ItemCard({ item, onEdit, onDelete, isAdmin = false }) {
         </div>
       )}
 
-      {/* Lightbox 大圖模式 */}
+      {/* Lightbox 大圖 */}
       {showFull && (
         <div
           className="fixed inset-0 bg-black bg-opacity-90 flex items-center justify-center z-50 p-4"
@@ -131,9 +159,8 @@ export default function ItemCard({ item, onEdit, onDelete, isAdmin = false }) {
           <div
             ref={fullRef}
             className="relative w-full max-w-[90vw] max-h-[90vh] flex overflow-x-auto scroll-smooth snap-x snap-mandatory hide-scrollbar"
-            style={{ scrollSnapType: "x mandatory" }}
             onScroll={handleFullScroll}
-            onClick={e => e.stopPropagation()}
+            onClick={(e) => e.stopPropagation()}
           >
             {images.map((src, idx) => (
               <img

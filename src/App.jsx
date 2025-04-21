@@ -1,7 +1,6 @@
-// App.jsx
 import React, { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { collection, onSnapshot, getDocs } from "firebase/firestore";
+import { collection, getDocs } from "firebase/firestore";
 import { db } from "./firebase";
 import Navbar from "./Navbar";
 import CategorySection from "./CategorySection";
@@ -22,23 +21,6 @@ function App() {
   ];
 
   useEffect(() => {
-    const preventDefaults = (e) => {
-      e.preventDefault();
-      e.stopPropagation();
-    };
-
-    ["dragenter", "dragover", "dragleave", "drop"].forEach((eventName) => {
-      window.addEventListener(eventName, preventDefaults, false);
-    });
-
-    return () => {
-      ["dragenter", "dragover", "dragleave", "drop"].forEach((eventName) => {
-        window.removeEventListener(eventName, preventDefaults, false);
-      });
-    };
-  }, []);
-
-  useEffect(() => {
     const fetchWithStock = async () => {
       const [itemSnap, borrowSnap, returnSnap] = await Promise.all([
         getDocs(collection(db, "items")),
@@ -46,31 +28,39 @@ function App() {
         getDocs(collection(db, "returnRecords")),
       ]);
 
-      const borrowCount = {};
-      borrowSnap.forEach((doc) => {
-        const data = doc.data();
-        borrowCount[data.itemId] = (borrowCount[data.itemId] || 0) + 1;
+      const borrowMap = {};
+      borrowSnap.docs.forEach((doc) => {
+        const { itemId } = doc.data();
+        borrowMap[itemId] = (borrowMap[itemId] || 0) + 1;
       });
 
-      returnSnap.forEach((doc) => {
+      returnSnap.docs.forEach((doc) => {
         const data = doc.data();
-        borrowCount[data.itemId] = (borrowCount[data.itemId] || 0) - 1;
+        if (Array.isArray(data.items)) {
+          data.items.forEach((item) => {
+            borrowMap[item.itemId] = (borrowMap[item.itemId] || 0) - (item.quantity || 1);
+          });
+        } else {
+          borrowMap[data.itemId] = (borrowMap[data.itemId] || 0) - 1;
+        }
       });
 
       const itemsWithStock = itemSnap.docs.map((doc) => {
         const data = doc.data();
-        const borrowed = borrowCount[doc.id] || 0;
-        const instock = Math.max((data.quantity || 0) - borrowed, 0);
-        return { id: doc.id, ...data, stock: instock };
+        const id = doc.id;
+        const total = data.quantity || 0;
+        const borrowed = borrowMap[id] || 0;
+        const stock = Math.max(total - borrowed, 0);
+        return { id, ...data, stock };
       });
 
       setItems(itemsWithStock);
 
-      const defaultExpanded = {};
+      const expanded = {};
       itemsWithStock.forEach((item) => {
-        defaultExpanded[item.category] = true;
+        expanded[item.category] = true;
       });
-      setExpandedCategories(defaultExpanded);
+      setExpandedCategories(expanded);
     };
 
     fetchWithStock();

@@ -6,7 +6,6 @@ import NewItemForm from "./NewItemForm";
 import Navbar from "./Navbar";
 import CategorySection from "./CategorySection";
 import Footer from "./Footer";
-import { Pencil, Trash2 } from "lucide-react";
 
 function AdminItemList() {
   const [items, setItems] = useState([]);
