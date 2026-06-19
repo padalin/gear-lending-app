@@ -17,6 +17,7 @@ function ItemForm({ initialData = {}, onSubmit, onCancel }) {
     remarksA: initialData.remarksA || "",
     remarksB: initialData.remarksB || "",
     quantity: initialData.quantity || 1,
+    locate: initialData.locate || "",
     images: Array.isArray(initialData.images) ? [...initialData.images] : [],
   });
 
@@ -26,7 +27,7 @@ function ItemForm({ initialData = {}, onSubmit, onCancel }) {
     const { name, value } = e.target;
     setFormData((prev) => ({
       ...prev,
-      [name]: name === "quantity" ? parseInt(value) : value,
+      [name]: name === "quantity" ? (parseInt(value, 10) || 0) : value,
     }));
   };
 
@@ -49,12 +50,10 @@ function ItemForm({ initialData = {}, onSubmit, onCancel }) {
     });
   };
 
-  console.log("images state in formData", formData.images);
-
-  
   return (
     <form onSubmit={handleSubmit} className="space-y-4 max-w-2xl mx-auto">
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+      {/* 在小屏幕上使用单列布局，中等屏幕以上使用双列 */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
         <Input name="label" label="Label" value={formData.label} onChange={handleChange} required />
         <Input name="category" label="Category" value={formData.category} onChange={handleChange} required />
         <Input name="brand" label="Brand" value={formData.brand} onChange={handleChange} />
@@ -64,27 +63,44 @@ function ItemForm({ initialData = {}, onSubmit, onCancel }) {
         <Input name="serialNumber" label="Serial Number" value={formData.serialNumber} onChange={handleChange} />
         <Input name="manufacturedDate" label="Manufactured Date" value={formData.manufacturedDate} onChange={handleChange} />
         <Select name="covered" label="Covered" value={formData.covered} onChange={handleChange} options={["", "紙箱", "硬殼", "軟袋", "軟殼", "無"]} />
+        <Input name="locate" label="Location" value={formData.locate} onChange={handleChange} />
         <Input name="quantity" label="數量" type="number" value={formData.quantity} onChange={handleChange} required />
       </div>
 
-      <Input name="remarksA" label="備註 A" value={formData.remarksA} onChange={handleChange} />
-      <Input name="remarksB" label="備註 B" value={formData.remarksB} onChange={handleChange} />
-
-      <div>
-        <label className="block font-medium mb-1">上傳圖片</label>
-        <ImageUploader
-  images={formData.images}
-  setImages={(newImages) =>
-    setFormData((prev) => ({ ...prev, images: newImages }))
-  }
-  setUploading={setUploading}
-/>
-
+      {/* 備註區塊 - 單列顯示 */}
+      <div className="space-y-3">
+        <Input name="remarksA" label="備註 A" value={formData.remarksA} onChange={handleChange} />
+        <Input name="remarksB" label="備註 B" value={formData.remarksB} onChange={handleChange} />
       </div>
 
-      <div className="flex justify-end gap-2">
-        <button type="button" onClick={onCancel} className="px-4 py-2 bg-gray-300 rounded">取消</button>
-        <button type="submit" className="px-4 py-2 bg-blue-500 text-white rounded">新增</button>
+      <div>
+        <label className="block font-medium mb-1 text-white">上傳圖片</label>
+        <div className="overflow-hidden">
+          <ImageUploader
+            images={formData.images}
+            setImages={(newImages) =>
+              setFormData((prev) => ({ ...prev, images: newImages }))
+            }
+            setUploading={setUploading}
+          />
+        </div>
+      </div>
+
+      {/* 按鈕區塊 - 在手機上垂直堆疊，更大的間距 */}
+      <div className="flex flex-col sm:flex-row justify-end gap-3 pt-6 pb-16 mt-8">
+        <button 
+          type="button" 
+          onClick={onCancel} 
+          className="px-4 py-3 bg-gray-500 hover:bg-gray-600 rounded text-white w-full sm:w-auto"
+        >
+          取消
+        </button>
+        <button 
+          type="submit" 
+          className="px-4 py-3 bg-blue-500 hover:bg-blue-600 text-white rounded w-full sm:w-auto"
+        >
+          確認
+        </button>
       </div>
     </form>
   );

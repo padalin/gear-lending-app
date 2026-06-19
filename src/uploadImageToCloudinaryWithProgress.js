@@ -1,8 +1,9 @@
 // src/uploadImageToCloudinaryWithProgress.js
 
 export async function uploadImageToCloudinary(file, onProgress) {
-  const CLOUD_NAME = "dsgchndir"; // ✅ 換成你的 Cloudinary 帳號名稱
-  const UPLOAD_PRESET = "gear_lending"; // ✅ 你的 unsigned upload preset
+  // 由 .env 的 VITE_CLOUDINARY_* 設定；未設定時暫時沿用舊帳號值
+  const CLOUD_NAME = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME || "dsgchndir";
+  const UPLOAD_PRESET = import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET || "gear_lending";
 
   return new Promise((resolve, reject) => {
     const formData = new FormData();

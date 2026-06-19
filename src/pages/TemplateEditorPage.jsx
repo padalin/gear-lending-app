@@ -124,6 +124,12 @@ export default function TemplateEditorPage() {
       <Navbar />
       <main className="max-w-4xl mx-auto px-4 pt-20 pb-32">
         <h1 className="text-2xl font-bold mb-4">模板管理</h1>
+        <button
+          onClick={() => (window.location.href = "/admin/items")}
+          className="mb-6 text-gray-300 hover:text-white hover:underline"
+          >
+          ← 返回器材管理
+        </button>
 
         {/* 新增 / 編輯 區塊 */}
         <div className="mb-6 border border-gray-700 p-4 rounded bg-gray-900">
@@ -176,7 +182,7 @@ export default function TemplateEditorPage() {
                 type="number"
                 min="1"
                 value={it.quantity}
-                onChange={e => updateQty(idx, Number(e.target.value))}
+                onChange={e => updateQty(idx, Math.max(1, Number(e.target.value) || 1))}
                 className="w-16 p-1 text-black rounded"
               />
               <button

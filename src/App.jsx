@@ -74,7 +74,7 @@ function App() {
   };
 
   const filterItem = (item) => {
-    const target = `${item.label} ${item.category} ${item.brand} ${item.model} ${item.class} ${item.remarksA} ${item.remarksB}`.toLowerCase();
+    const target = `${item.label || ""} ${item.category || ""} ${item.brand || ""} ${item.model || ""} ${item.class || ""} ${item.locate || ""} ${item.remarksA || ""} ${item.remarksB || ""}`.toLowerCase();
     return target.includes(searchTerm.toLowerCase());
   };
 
@@ -115,13 +115,13 @@ function App() {
         </div>
 
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
-          <input
-            type="text"
-            placeholder="搜尋器材名稱、分類、品牌..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full sm:max-w-xs px-4 py-2 border border-gray-600 rounded bg-gray-800 text-white placeholder-gray-400"
-          />
+        <input
+          type="text"
+          placeholder="搜尋器材名稱、分類、品牌、位置、備註"
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+          className="w-full sm:max-w-xs px-4 py-2 border border-gray-600 rounded bg-gray-800 text-white placeholder-gray-400"
+        />
         </div>
 
         {sortedGroupedEntries.map(([cat, list]) => (

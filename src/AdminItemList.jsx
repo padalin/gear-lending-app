@@ -22,6 +22,40 @@ function AdminItemList() {
     "Synthesizer",
   ];
 
+  // 頁面載入時恢復滾動位置
+  useEffect(() => {
+    const savedPosition = localStorage.getItem('adminItemsScrollPosition');
+    if (savedPosition) {
+      setTimeout(() => {
+        window.scrollTo(0, parseInt(savedPosition));
+      }, 100);
+    }
+    
+    // 頁面離開前保存滾動位置
+    const handleBeforeUnload = () => {
+      localStorage.setItem('adminItemsScrollPosition', window.scrollY.toString());
+    };
+    
+    // 監聽頁面點擊事件來保存滾動位置
+    const handleClick = (e) => {
+      // 如果點擊了連結或按鈕，保存當前滾動位置
+      if (e.target.tagName === 'A' || 
+          e.target.tagName === 'BUTTON' || 
+          e.target.closest('a') || 
+          e.target.closest('button')) {
+        localStorage.setItem('adminItemsScrollPosition', window.scrollY.toString());
+      }
+    };
+    
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    document.addEventListener('click', handleClick);
+    
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+      document.removeEventListener('click', handleClick);
+    };
+  }, []);
+
   useEffect(() => {
     const fetchData = async () => {
       const [itemSnap, borrowSnap, returnSnap] = await Promise.all([
@@ -62,10 +96,19 @@ function AdminItemList() {
   const handleDelete = async (item) => {
     const ok = window.confirm(`確定要刪除「${item.label}」嗎？`);
     if (!ok) return;
-    await deleteDoc(doc(db, "items", item.id));
+    try {
+      await deleteDoc(doc(db, "items", item.id));
+      // 更新項目列表
+      setItems(prev => prev.filter(i => i.id !== item.id));
+    } catch (err) {
+      console.error("刪除失敗：", err);
+      alert("刪除失敗，請稍後再試");
+    }
   };
 
   const handleEdit = (item) => {
+    // 在導航前保存滾動位置
+    localStorage.setItem('adminItemsScrollPosition', window.scrollY.toString());
     window.location.href = `/admin/items/edit/${item.id}`;
   };
 
@@ -77,7 +120,7 @@ function AdminItemList() {
   };
 
   const filterItem = (item) => {
-    const target = `${item.label} ${item.category} ${item.brand} ${item.model} ${item.class} ${item.remarksA} ${item.remarksB}`.toLowerCase();
+    const target = `${item.label} ${item.category} ${item.brand} ${item.model} ${item.class} ${item.locate || ""} ${item.remarksA} ${item.remarksB}`.toLowerCase();
     return target.includes(searchTerm.toLowerCase());
   };
 
@@ -105,7 +148,10 @@ function AdminItemList() {
           <div className="flex flex-wrap gap-2">
             {/* 新增：模板管理按鈕 */}
             <button
-              onClick={() => (window.location.href = "/admin/templates")}
+              onClick={() => {
+                localStorage.setItem('adminItemsScrollPosition', window.scrollY.toString());
+                window.location.href = "/admin/templates";
+              }}
               className="bg-black text-white border border-teal-600 hover:bg-teal-700 px-4 py-2 rounded shadow"
             >
               模板管理
@@ -119,13 +165,19 @@ function AdminItemList() {
               新增器材
             </button>
             <button
-              onClick={() => (window.location.href = "/admin/bulk-add")}
+              onClick={() => {
+                localStorage.setItem('adminItemsScrollPosition', window.scrollY.toString());
+                window.location.href = "/admin/bulk-add";
+              }}
               className="bg-black text-white border border-gray-600 hover:bg-gray-700 px-4 py-2 rounded shadow"
             >
               批次新增
             </button>
             <button
-              onClick={() => (window.location.href = "/admin/bulk-edit")}
+              onClick={() => {
+                localStorage.setItem('adminItemsScrollPosition', window.scrollY.toString());
+                window.location.href = "/admin/bulk-edit";
+              }}
               className="bg-black text-white border border-gray-600 hover:bg-gray-700 px-4 py-2 rounded shadow"
             >
               批次編輯
@@ -137,12 +189,12 @@ function AdminItemList() {
           onClick={() => (window.location.href = "/admin")}
           className="mb-6 text-gray-300 hover:text-white hover:underline"
         >
-          ← 返回上一層
+          ← 返回管理員後台
         </button>
 
         <input
           type="text"
-          placeholder="搜尋器材名稱、分類、品牌..."
+          placeholder="搜尋器材名稱、分類、品牌、位置..."
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
           className="w-full mb-6 px-4 py-2 border border-gray-600 rounded bg-gray-800 text-white placeholder-gray-400"
@@ -162,11 +214,15 @@ function AdminItemList() {
         ))}
 
         {showModal && (
-          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-            <div className="bg-gray-900 text-white p-6 rounded-xl shadow-lg w-full max-w-3xl">
+          <div className="fixed inset-0 bg-black/50 flex items-start justify-center z-50 overflow-y-auto py-10">
+            <div className="bg-gray-900 text-white p-4 sm:p-6 rounded-xl shadow-lg w-full max-w-3xl mx-4 my-auto">
               <NewItemForm
                 onClose={() => setShowModal(false)}
-                onSuccess={() => setShowModal(false)}
+                onSuccess={() => {
+                  setShowModal(false);
+                  // 重新載入資料但保持滾動位置
+                  window.location.reload();
+                }}
               />
             </div>
           </div>

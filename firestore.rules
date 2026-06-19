@@ -1,0 +1,65 @@
+rules_version = '2';
+
+// ──────────────────────────────────────────────────────────────
+// 器材借還系統 Firestore 安全規則（建議版）
+//
+// ⚠️ 發佈前務必用 Firebase Console 的「Rules Playground」測試，
+//    並先在開發專案 gear-lending-dev2 試，再上正式專案 gear-lending。
+//
+// 重要：資料庫在「正式專案 gear-lending」（不是 hosting 的 gear-lending-app）。
+//       到 console 改規則時請確認選的是 gear-lending 這個專案。
+//
+// 設計說明：
+//  - 借用 / 歸還是「公開、免登入」的自助流程，因此 borrowRequests /
+//    returnRecords 必須允許任何人「讀取」與「新增」。
+//  - 器材(items)、模板(presets)的「寫入」，以及借還紀錄的「修改/刪除」，
+//    只開放給管理員（email 在白名單內）。
+//  - 已知限制：因為借還免登入，借用人姓名/電話目前任何人都可讀取到。
+//    若要保護這些個資，需把庫存計算與歸還查詢改到後端(Cloud Functions)，
+//    屬較大改動，列為未來項目。
+// ──────────────────────────────────────────────────────────────
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // 管理員 email 白名單 —— 請與 src/adminEmails.js 保持一致（小寫）
+    function isAdmin() {
+      return request.auth != null
+        && request.auth.token.email in [
+          'paguitarist@gmail.com'
+          // , 'another-admin@example.com'
+        ];
+    }
+
+    // 器材：所有人可讀（首頁、借還頁需要）；只有管理員可新增/修改/刪除
+    match /items/{itemId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // 常用組合模板：所有人可讀（借用頁套用模板）；只有管理員可寫
+    match /presets/{presetId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // 借用紀錄：公開免登入借用 → 允許讀取與新增；修改/刪除限管理員
+    match /borrowRequests/{docId} {
+      allow read: if true;
+      allow create: if true;
+      allow update, delete: if isAdmin();
+    }
+
+    // 歸還紀錄：同上
+    match /returnRecords/{docId} {
+      allow read: if true;
+      allow create: if true;
+      allow update, delete: if isAdmin();
+    }
+
+    // 其他未列出的路徑：一律拒絕（這也是 Firestore 預設行為，明寫以示意圖）
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

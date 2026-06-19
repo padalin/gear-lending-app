@@ -1,5 +1,6 @@
 {
   "hosting": {
+    "site": "gear-lending",
     "public": "dist",
     "ignore": [
       "firebase.json",
@@ -7,6 +8,10 @@
       "**/node_modules/**"
     ],
     "rewrites": [
+      {
+        "source": "/cabinet-map.png",
+        "destination": "/cabinet-map.png"
+      },
       {
         "source": "**",
         "destination": "/index.html"

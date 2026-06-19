@@ -2,6 +2,7 @@
 import React, { createContext, useContext, useEffect, useState } from "react";
 import { onAuthStateChanged, signOut } from "firebase/auth";
 import { auth } from "./firebase";
+import { ADMIN_EMAILS } from "./adminEmails";
 
 const AuthContext = createContext();
 
@@ -19,8 +20,11 @@ export function AuthProvider({ children }) {
 
   const logout = () => signOut(auth);
 
+  const isAdmin =
+    !!user && ADMIN_EMAILS.includes((user.email || "").toLowerCase());
+
   return (
-    <AuthContext.Provider value={{ user, logout }}>
+    <AuthContext.Provider value={{ user, isAdmin, logout }}>
       {!loading && children}
     </AuthContext.Provider>
   );

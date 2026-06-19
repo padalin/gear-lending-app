@@ -1,3 +1,5 @@
+/* 添加到 index.css 文件中的樣式 */
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -20,4 +22,52 @@
 }
 .hide-scrollbar::-webkit-scrollbar {
   display: none;             /* Chrome、Safari、Opera */
+}
+
+/* 移動端顯示與滾動問題修正 */
+html, body {
+  height: auto;
+  min-height: 100%;
+  overflow-x: hidden;
+  position: relative;
+}
+
+#root {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+main {
+  flex: 1;
+}
+
+form {
+  margin-bottom: 6rem;
+}
+
+.overflow-y-auto {
+  -webkit-overflow-scrolling: touch;
+}
+
+/* 確保模態內容可滾動 */
+.modal-container {
+  max-height: 90vh;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* 手機端按鈕增大點擊區域 */
+@media (max-width: 640px) {
+  button, 
+  [type="button"],
+  [type="submit"] {
+    min-height: 44px;
+  }
+  
+  input, 
+  select, 
+  textarea {
+    font-size: 16px; /* 防止iOS自動縮放 */
+  }
 }

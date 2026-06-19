@@ -28,14 +28,14 @@ ReactDOM.createRoot(document.getElementById("root")).render(
     <BrowserRouter>
       <AuthProvider>
         <Routes>
-          <Route path="/admin/bulk-edit" element={<BulkEditPage />} />
+          <Route path="/admin/bulk-edit" element={<ProtectedRoute><BulkEditPage /></ProtectedRoute>} />
           <Route path="/" element={<App />} />
           <Route path="/item/:id" element={<ItemDetail />} />
           <Route path="/borrow" element={<MultiBorrowForm />} />
           <Route path="/return" element={<MultiReturnForm />} />
           <Route path="/success" element={<Success />} />
           <Route path="/login" element={<Login />} />
-          <Route path="/admin/bulk-add" element={<BulkAddPage />} />
+          <Route path="/admin/bulk-add" element={<ProtectedRoute><BulkAddPage /></ProtectedRoute>} />
 
           <Route
             path="/admin"
@@ -45,10 +45,10 @@ ReactDOM.createRoot(document.getElementById("root")).render(
               </ProtectedRoute>
             }
           />
-          <Route path="/admin/items" element={<AdminItemList />} />
-          <Route path="/admin/items/new" element={<NewItemForm />} />
-          <Route path="/admin/items/edit/:id" element={<EditItemPage />} />
-          <Route path="/admin/templates" element={<TemplateEditorPage />} />  {/* ← 新增模板編輯頁路由 */}
+          <Route path="/admin/items" element={<ProtectedRoute><AdminItemList /></ProtectedRoute>} />
+          <Route path="/admin/items/new" element={<ProtectedRoute><NewItemForm /></ProtectedRoute>} />
+          <Route path="/admin/items/edit/:id" element={<ProtectedRoute><EditItemPage /></ProtectedRoute>} />
+          <Route path="/admin/templates" element={<ProtectedRoute><TemplateEditorPage /></ProtectedRoute>} />
         </Routes>
       </AuthProvider>
     </BrowserRouter>

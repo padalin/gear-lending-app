@@ -5,8 +5,8 @@ import ItemCard from "./ItemCard";
 function CategorySection({ category, items, expanded, onToggle, isAdmin, onEdit, onDelete }) {
 
   // 在這裡進行英數升冪排序 (不影響原本的items)
-  const sortedItems = [...items].sort((a, b) => 
-    a.label.localeCompare(b.label, 'en', { numeric: true })
+  const sortedItems = [...items].sort((a, b) =>
+    (a.label || "").localeCompare(b.label || "", 'en', { numeric: true })
   );
 
   return (

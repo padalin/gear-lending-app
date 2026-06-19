@@ -1,7 +1,7 @@
 // src/BulkAddPage.jsx
 import React, { useState } from "react";
 import Papa from "papaparse";
-import { collection, addDoc } from "firebase/firestore";
+import { collection, doc, writeBatch } from "firebase/firestore";
 import { db } from "./firebase";
 import Navbar from "./Navbar";
 import Footer from "./Footer";
@@ -29,6 +29,7 @@ function BulkAddPage() {
           serialNumber: row["SN"]?.trim() || "",
           manufacturedDate: row["Manufactured Date"]?.trim() || "",
           covered: row["Covered"]?.trim() || "",
+          locate: row["Location"]?.trim() || "",
           remarksA: row["Remarks"]?.trim() || "",
           remarksB: row["Remarks.1"]?.trim() || "",
           quantity: 1,
@@ -56,7 +57,7 @@ function BulkAddPage() {
   };
 
   const addEmptyRow = () => {
-    setItems([...items, { label: "", category: "", quantity: 1, images: [] }]);
+    setItems([...items, { label: "", category: "", quantity: 1, locate: "", images: [] }]);
   };
 
   const removeRow = index => {
@@ -71,11 +72,17 @@ function BulkAddPage() {
       return;
     }
     try {
-      for (const item of validItems) {
-        const { images, ...rest } = item;
-        const payload = { ...rest };
-        if (images && images.length) payload.images = images;
-        await addDoc(collection(db, "items"), payload);
+      const itemsRef = collection(db, "items");
+      const batchSize = 450; // Firestore 單批上限 500，保守取 450
+      for (let i = 0; i < validItems.length; i += batchSize) {
+        const batch = writeBatch(db);
+        for (const item of validItems.slice(i, i + batchSize)) {
+          const { images, ...rest } = item;
+          const payload = { ...rest };
+          if (images && images.length) payload.images = images;
+          batch.set(doc(itemsRef), payload); // doc(collectionRef) 自動產生 ID
+        }
+        await batch.commit();
       }
       alert("新增成功！");
       setItems([]);
@@ -89,7 +96,13 @@ function BulkAddPage() {
     <div className="min-h-screen bg-gray-950 text-white">
       <Navbar />
       <main className="pt-20 px-4 max-w-5xl mx-auto pb-24">
-        <h1 className="text-2xl font-bold mb-4">📦 批次新增器材</h1>
+        <h1 className="text-2xl font-bold mb-4">批次新增器材</h1>
+        <button
+          onClick={() => (window.location.href = "/admin/items")}
+          className="mb-6 text-gray-300 hover:text-white hover:underline"
+          >
+          ← 返回器材管理
+        </button>
 
         <div className="mb-6">
           <label className="block mb-2 font-medium">上傳 CSV 檔案：</label>
@@ -124,6 +137,7 @@ function BulkAddPage() {
                 <th className="p-2">SN</th>
                 <th className="p-2">Date</th>
                 <th className="p-2">Covered</th>
+                <th className="p-2">Location</th>
                 <th className="p-2">Remarks A</th>
                 <th className="p-2">Remarks B</th>
                 <th className="p-2">Images</th>
@@ -137,7 +151,7 @@ function BulkAddPage() {
                     "label","category","quantity",
                     "brand","model","class","colour",
                     "serialNumber","manufacturedDate",
-                    "covered","remarksA","remarksB"
+                    "covered","locate","remarksA","remarksB"
                   ].map(field => (
                     <td key={field} className="p-1">
                       <input

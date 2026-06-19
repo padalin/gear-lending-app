@@ -15,6 +15,7 @@ function MultiBorrowForm() {
   const [note, setNote] = useState("");
   const [error, setError] = useState("");
   const [showConfirm, setShowConfirm] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [expandedCategories, setExpandedCategories] = useState({});
   const [searchTerm, setSearchTerm] = useState("");
   const navigate = useNavigate();
@@ -87,8 +88,10 @@ function MultiBorrowForm() {
     return acc;
   }, {});
 
-  const filterItem = it =>
-    `${it.label} ${it.brand} ${it.model}`.toLowerCase().includes(searchTerm.toLowerCase());
+  const filterItem = it => {
+    const searchText = `${it.label} ${it.brand} ${it.model} ${it.locate || ""} ${it.category}`.toLowerCase();
+    return searchText.includes(searchTerm.toLowerCase());
+  };
 
   const sortedGroupEntries = Object.entries(groupedItems)
     .map(([cat, list]) => [
@@ -134,7 +137,7 @@ function MultiBorrowForm() {
     tpl.items.forEach(entry => {
       const match = items.find(it => it.label === entry.label);
       if (match && match.stock > 0 && !updates[match.id]) {
-        updates[match.id] = entry.quantity;
+        updates[match.id] = Math.min(entry.quantity, match.stock);
       }
     });
     setSelected(updates);
@@ -159,16 +162,63 @@ function MultiBorrowForm() {
 
   // 確認送出
   const handleConfirmSubmit = async () => {
+    if (isSubmitting) return; // 防止連點重複送出
+    setIsSubmitting(true);
+    setError("");
     try {
+      // 送出前重新計算最新在庫，降低他人同時借用造成超借的機率
+      // 註：這是過渡方案，非真正的原子交易。完整解法需在 item 文件維護庫存欄位並用 runTransaction，詳見交接文件。
+      const [borrowSnap, returnSnap] = await Promise.all([
+        getDocs(collection(db, "borrowRequests")),
+        getDocs(collection(db, "returnRecords")),
+      ]);
+      const borrowMap = {};
+      borrowSnap.docs.forEach(d => {
+        const { itemId } = d.data();
+        borrowMap[itemId] = (borrowMap[itemId] || 0) + 1;
+      });
+      const returnMap = {};
+      returnSnap.docs.forEach(d => {
+        const data = d.data();
+        if (Array.isArray(data.items)) {
+          data.items.forEach(entry => {
+            returnMap[entry.itemId] = (returnMap[entry.itemId] || 0) + (entry.quantity || 1);
+          });
+        } else {
+          const { itemId } = data;
+          returnMap[itemId] = (returnMap[itemId] || 0) + 1;
+        }
+      });
+
+      // 驗證每項選取數量未超過最新在庫
+      for (const it of selectedItems) {
+        const qty = selected[it.id] || 0;
+        const total = it.quantity || 0;
+        const borrowed = (borrowMap[it.id] || 0) - (returnMap[it.id] || 0);
+        const available = Math.max(total - borrowed, 0);
+        if (qty > available) {
+          setError(`「${it.label}」庫存不足（目前剩 ${available}），請重新整理頁面後再試`);
+          setShowConfirm(false);
+          return;
+        }
+      }
+
+      // 同一次借用的所有單位共用一個批次代號，後台「詳細模式」依此合併為一張卡
+      const sessionId =
+        typeof crypto !== "undefined" && crypto.randomUUID
+          ? crypto.randomUUID()
+          : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+
       for (const it of selectedItems) {
         const qty = selected[it.id] || 0;
         for (let i = 0; i < qty; i++) {
           await addDoc(collection(db, "borrowRequests"), {
             itemId: it.id,
             itemName: it.label,
-            borrower: name,
-            phone,
+            borrower: name.trim(),
+            phone: phone.trim(),
             note,
+            sessionId,
             timestamp: new Date(),
           });
         }
@@ -178,6 +228,8 @@ function MultiBorrowForm() {
       console.error(err);
       setError("資料送出失敗，請稍後再試");
       setShowConfirm(false);
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -212,13 +264,16 @@ function MultiBorrowForm() {
                 {selectedItems.map(it => (
                   <li key={it.id} className="flex gap-3 items-center">
                     <img src={it.images?.[0]} alt={it.label} className="w-16 h-16 object-cover rounded border border-white" />
-                    <span>{it.label} × {selected[it.id]}</span>
+                    <div>
+                      <p>{it.label} × {selected[it.id]}</p>
+                      {it.locate && <p className="text-sm text-gray-400">位置：{it.locate}</p>}
+                    </div>
                   </li>
                 ))}
               </ul>
               <div className="flex justify-end gap-2 mt-3">
                 <button className="bg-gray-600 hover:bg-gray-700 text-white px-3 py-1 rounded" onClick={() => setShowConfirm(false)}>取消</button>
-                <button className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded" onClick={handleConfirmSubmit}>送出</button>
+                <button className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded disabled:opacity-50" onClick={handleConfirmSubmit} disabled={isSubmitting}>{isSubmitting ? "送出中…" : "送出"}</button>
               </div>
             </div>
           )}
@@ -262,7 +317,7 @@ function MultiBorrowForm() {
             {/* 搜尋 */}
             <input
               type="text"
-              placeholder="搜尋器材名稱、品牌或型號..."
+              placeholder="搜尋器材名稱、分類、品牌、位置、備註"
               value={searchTerm}
               onChange={e => setSearchTerm(e.target.value)}
               className="w-full mb-4 px-4 py-2 border border-blue-400 rounded bg-blue-50 text-black placeholder-gray-500"
@@ -308,6 +363,7 @@ function MultiBorrowForm() {
                       <div className="flex-1">
                         <p className="font-semibold text-white">{item.label}</p>
                         <p className="text-sm text-gray-300">{item.brand} {item.model}</p>
+                        {item.locate && <p className="text-sm text-gray-300">位置：{item.locate}</p>}
                         <p className="text-sm text-white mt-1">
                           在庫：{avail}/{item.quantity || 0}
                         </p>
@@ -347,7 +403,10 @@ function MultiBorrowForm() {
                     alt={it.label}
                     className="w-10 h-10 object-cover rounded border"
                   />
-                  <span className="flex-1 text-left text-xs truncate">{it.label}</span>
+                  <div className="flex-1 text-left text-xs">
+                    <p className="truncate">{it.label}</p>
+                    {it.locate && <p className="text-gray-400 text-xs">位置：{it.locate}</p>}
+                  </div>
                   <span className="text-xs">× {selected[it.id]}</span>
                   <button onClick={() => removeItem(it.id)} className="text-red-400 hover:text-red-600 text-xs ml-2">
                     刪除

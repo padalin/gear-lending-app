@@ -21,6 +21,7 @@ function MultiReturnForm() {
   const [borrowCounts, setBorrowCounts] = useState({});
   const [expandedCategories, setExpandedCategories] = useState({});
   const [showConfirm, setShowConfirm] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const navigate = useNavigate();
 
   const categoryOrder = ["EG", "AG", "Nylon GT", "Others Strings", "Keys", "Synthesizer"];
@@ -50,14 +51,14 @@ function MultiReturnForm() {
         let returnQuery;
 
         if (name.trim() && phone.trim()) {
-          borrowQuery = query(collection(db, "borrowRequests"), where("borrower", "==", name), where("phone", "==", phone));
-          returnQuery = query(collection(db, "returnRecords"), where("borrower", "==", name), where("phone", "==", phone));
+          borrowQuery = query(collection(db, "borrowRequests"), where("borrower", "==", name.trim()), where("phone", "==", phone.trim()));
+          returnQuery = query(collection(db, "returnRecords"), where("borrower", "==", name.trim()), where("phone", "==", phone.trim()));
         } else if (name.trim()) {
-          borrowQuery = query(collection(db, "borrowRequests"), where("borrower", "==", name));
-          returnQuery = query(collection(db, "returnRecords"), where("borrower", "==", name));
+          borrowQuery = query(collection(db, "borrowRequests"), where("borrower", "==", name.trim()));
+          returnQuery = query(collection(db, "returnRecords"), where("borrower", "==", name.trim()));
         } else if (phone.trim()) {
-          borrowQuery = query(collection(db, "borrowRequests"), where("phone", "==", phone));
-          returnQuery = query(collection(db, "returnRecords"), where("phone", "==", phone));
+          borrowQuery = query(collection(db, "borrowRequests"), where("phone", "==", phone.trim()));
+          returnQuery = query(collection(db, "returnRecords"), where("phone", "==", phone.trim()));
         }
 
         const [borrowSnap, returnSnap] = await Promise.all([
@@ -157,11 +158,52 @@ function MultiReturnForm() {
   };
 
   const handleConfirmSubmit = async () => {
+    if (isSubmitting) return; // 防止連點重複送出
+    setIsSubmitting(true);
+    setError("");
     try {
+      const trimmedName = name.trim();
+      const trimmedPhone = phone.trim();
+
+      // 送出前重新確認可歸還數量，避免重複歸還造成超還
+      const borrowQuery = query(collection(db, "borrowRequests"), where("borrower", "==", trimmedName), where("phone", "==", trimmedPhone));
+      const returnQuery = query(collection(db, "returnRecords"), where("borrower", "==", trimmedName), where("phone", "==", trimmedPhone));
+      const [borrowSnap, returnSnap] = await Promise.all([getDocs(borrowQuery), getDocs(returnQuery)]);
+      const latest = {};
+      borrowSnap.docs.forEach((doc) => {
+        const data = doc.data();
+        latest[data.itemId] = (latest[data.itemId] || 0) + 1;
+      });
+      returnSnap.docs.forEach((doc) => {
+        const data = doc.data();
+        if (data.items && Array.isArray(data.items)) {
+          data.items.forEach((item) => {
+            latest[item.itemId] = (latest[item.itemId] || 0) - (item.quantity || 1);
+          });
+        } else {
+          latest[data.itemId] = (latest[data.itemId] || 0) - 1;
+        }
+      });
+      for (const it of selectedItems) {
+        const qty = selected[it.id] || 0;
+        const available = latest[it.id] || 0;
+        if (qty > available) {
+          setError(`「${it.label}」最多可歸還 ${available} 筆，請重新整理後再試`);
+          setShowConfirm(false);
+          return;
+        }
+      }
+
+      const sessionId =
+        typeof crypto !== "undefined" && crypto.randomUUID
+          ? crypto.randomUUID()
+          : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+
       const payload = {
-        borrower: name,
-        phone,
+        borrower: trimmedName,
+        phone: trimmedPhone,
         note,
+        sessionId,
         timestamp: new Date(),
         items: selectedItems.map((it) => ({
           itemId: it.id,
@@ -177,6 +219,8 @@ function MultiReturnForm() {
       console.error("送出失敗", err);
       setError("送出失敗，請稍後再試");
       setShowConfirm(false);
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -204,7 +248,10 @@ function MultiReturnForm() {
                       alt={item.label}
                       className="w-16 h-16 object-cover rounded border border-white"
                     />
-                    <span>{item.label} × {selected[item.id]}</span>
+                    <div>
+                      <span>{item.label} × {selected[item.id]}</span>
+                      {item.locate && <p className="text-sm text-gray-400">位置：{item.locate}</p>}
+                    </div>
                   </li>
                 ))}
               </ul>
@@ -214,9 +261,10 @@ function MultiReturnForm() {
                   onClick={() => setShowConfirm(false)}
                 >取消</button>
                 <button
-                  className="bg-blue-600 hover:bg-blue-700 text-white text-sm px-3 py-1 rounded"
+                  className="bg-blue-600 hover:bg-blue-700 text-white text-sm px-3 py-1 rounded disabled:opacity-50"
                   onClick={handleConfirmSubmit}
-                >送出</button>
+                  disabled={isSubmitting}
+                >{isSubmitting ? "送出中…" : "送出"}</button>
               </div>
             </div>
           ) : (
@@ -265,6 +313,7 @@ function MultiReturnForm() {
                         <div className="flex-1">
                           <p className="font-semibold text-white">{item.label}</p>
                           <p className="text-sm text-gray-300">{item.brand} {item.model}</p>
+                          {item.locate && <p className="text-sm text-gray-300">位置：{item.locate}</p>}
                           <p className="text-sm text-white mt-1">可歸還數量：{available}</p>
                           <div className="flex items-center gap-2 mt-2">
                             <button type="button" onClick={() => decrementQty(item.id)} className="bg-gray-700 text-white px-2 rounded">−</button>

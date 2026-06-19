@@ -55,7 +55,7 @@ export default function ItemCard({ item, onEdit, onDelete, isAdmin = false }) {
   const quantity = item.quantity || 0;
   const inStock = Math.max(quantity - (borrowCount - returnCount), 0);
   const stockText = `${inStock}/${quantity}`;
-  const isFull = inStock === quantity;
+  const isFull = quantity > 0 && inStock === quantity;
 
   const images = Array.isArray(item.images) ? item.images : [];
   const [imgIndex, setImgIndex] = useState(0);
@@ -124,6 +124,8 @@ export default function ItemCard({ item, onEdit, onDelete, isAdmin = false }) {
       <div className="flex-none w-2/5 h-full overflow-y-auto">
         <div className="pl-4 pr-2 pt-3 text-sm">
           <h2 className="text-base font-semibold mb-2">{item.label}</h2>
+          {item.locate && <p className="font-light">位置：{item.locate}</p>}
+          <br></br>
           <p className="font-light">分類：{item.category}</p>
           {item.brand && <p className="font-light">品牌：{item.brand}</p>}
           {item.model && <p className="font-light">型號：{item.model}</p>}
