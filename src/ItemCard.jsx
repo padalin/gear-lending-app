@@ -4,7 +4,7 @@ import { collection, getDocs } from "firebase/firestore";
 import { db } from "./firebase";
 import { Pencil, Trash2 } from "lucide-react";
 
-export default function ItemCard({ item, onEdit, onDelete, isAdmin = false }) {
+export default function ItemCard({ item, onEdit, onDelete, isAdmin = false, view = "grid" }) {
   const [borrowCount, setBorrowCount] = useState(0);
   const [returnCount, setReturnCount] = useState(0);
 
@@ -51,7 +51,6 @@ export default function ItemCard({ item, onEdit, onDelete, isAdmin = false }) {
   const quantity = item.quantity || 0;
   const inStock = Math.max(quantity - (borrowCount - returnCount), 0);
 
-  // 在庫狀態標籤：滿庫綠、部分借出琥珀、全借出紅
   let badge;
   if (quantity === 0) {
     badge = { cls: "text-gray-200 bg-gray-700", label: "—" };
@@ -66,12 +65,12 @@ export default function ItemCard({ item, onEdit, onDelete, isAdmin = false }) {
   const images = Array.isArray(item.images) ? item.images : [];
   const [imgIndex, setImgIndex] = useState(0);
   const [showFull, setShowFull] = useState(false);
-  const [showDetail, setShowDetail] = useState(false);
+  const [showDetail, setShowDetail] = useState(true);
 
   const thumbRef = useRef(null);
   const fullRef = useRef(null);
 
-  const handleScroll = (setter) => (e) => {
+  const handleScroll = (e) => {
     const w = e.target.clientWidth;
     setImgIndex(w ? Math.round(e.target.scrollLeft / w) : 0);
   };
@@ -84,39 +83,83 @@ export default function ItemCard({ item, onEdit, onDelete, isAdmin = false }) {
   const hasDetail =
     item.serialNumber || item.class || item.colour || item.manufacturedDate || item.covered || item.remarksA || item.remarksB;
 
-  return (
-    <div className="bg-black text-white rounded-xl border border-gray-700 overflow-hidden flex flex-col">
-      {/* 大圖區（可左右滑、點擊放大） */}
+  const badgeEl = (
+    <span className={`text-xs font-semibold rounded-full px-2.5 py-1 flex-shrink-0 whitespace-nowrap ${badge.cls}`}>{badge.label}</span>
+  );
+
+  const adminEl = isAdmin ? (
+    <div className="flex gap-3 flex-shrink-0">
+      <button onClick={() => onEdit(item)} className="text-gray-300 hover:text-blue-400" aria-label="編輯"><Pencil size={18} /></button>
+      <button onClick={() => onDelete(item)} className="text-gray-300 hover:text-red-400" aria-label="刪除"><Trash2 size={18} /></button>
+    </div>
+  ) : null;
+
+  const lightbox = showFull && (
+    <div className="fixed inset-0 bg-black bg-opacity-90 flex items-center justify-center z-50 p-4" onClick={() => setShowFull(false)}>
       <div
-        className="relative w-full aspect-[4/3] bg-gray-900 cursor-pointer"
+        ref={fullRef}
+        className="relative w-full max-w-[90vw] max-h-[90vh] flex overflow-x-auto scroll-smooth snap-x snap-mandatory hide-scrollbar"
+        onScroll={handleScroll}
+        onClick={(e) => e.stopPropagation()}
+      >
+        {images.map((src, idx) => (
+          <img key={idx} src={src} alt={`${item.label}-full-${idx}`} className="flex-shrink-0 w-full max-h-[90vh] m-auto object-contain snap-start" />
+        ))}
+      </div>
+    </div>
+  );
+
+  // ── 列表模式（精簡橫列，密度高）──
+  if (view === "list") {
+    return (
+      <div className="flex gap-3 items-center bg-black text-white rounded-lg border border-gray-700 p-2">
+        <div
+          className="w-16 h-16 flex-shrink-0 rounded bg-gray-900 overflow-hidden cursor-pointer flex items-center justify-center"
+          onClick={() => images.length > 0 && setShowFull(true)}
+        >
+          {images[0] ? (
+            <img src={images[0]} alt={item.label} loading="lazy" className="w-full h-full object-cover" />
+          ) : (
+            <span className="text-gray-500 text-xs">無圖</span>
+          )}
+        </div>
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center justify-between gap-2">
+            <span className="text-base font-semibold truncate">{item.label}</span>
+            {badgeEl}
+          </div>
+          <div className="text-sm text-gray-300 truncate">
+            <span className="text-blue-400">位置</span> {item.locate || "—"}
+            <span className="text-gray-400">　{item.category}{item.brand ? ` · ${item.brand}` : ""} {item.model || ""}</span>
+          </div>
+          {item.serialNumber && <div className="text-xs text-gray-500 truncate">序號 {item.serialNumber}</div>}
+        </div>
+        {adminEl}
+        {lightbox}
+      </div>
+    );
+  }
+
+  // ── 大圖模式（手機直式大圖、電腦橫式）──
+  return (
+    <div className="bg-black text-white rounded-xl border border-gray-700 overflow-hidden flex flex-col sm:flex-row">
+      <div
+        className="relative w-full aspect-[3/4] sm:w-36 sm:aspect-[3/4] sm:flex-shrink-0 bg-gray-900 cursor-pointer"
         onClick={() => images.length > 0 && setShowFull(true)}
       >
         <div
           ref={thumbRef}
           className="h-full flex overflow-x-auto scroll-smooth snap-x snap-mandatory hide-scrollbar"
-          onScroll={handleScroll(setImgIndex)}
+          onScroll={handleScroll}
         >
           {images.length > 0 ? (
             images.map((src, idx) => (
-              <img
-                key={idx}
-                src={src}
-                alt={`${item.label}-${idx}`}
-                loading="lazy"
-                className="flex-shrink-0 w-full h-full object-contain snap-start"
-              />
+              <img key={idx} src={src} alt={`${item.label}-${idx}`} loading="lazy" className="flex-shrink-0 w-full h-full object-contain snap-start" />
             ))
           ) : (
             <div className="w-full h-full flex items-center justify-center text-gray-500">無圖</div>
           )}
         </div>
-
-        {/* 在庫標籤疊在右上 */}
-        <span className={`absolute top-2 right-2 text-xs font-semibold rounded-full px-2.5 py-1 ${badge.cls}`}>
-          {badge.label}
-        </span>
-
-        {/* 多圖小圓點 */}
         {images.length > 1 && (
           <div className="absolute bottom-2 left-1/2 -translate-x-1/2 flex gap-1">
             {images.map((_, i) => (
@@ -126,16 +169,11 @@ export default function ItemCard({ item, onEdit, onDelete, isAdmin = false }) {
         )}
       </div>
 
-      {/* 資訊區 */}
-      <div className="p-3">
+      <div className="p-3 flex-1 min-w-0">
         <div className="flex items-start justify-between gap-2">
-          <h2 className="text-lg font-semibold leading-tight">{item.label}</h2>
-          {isAdmin && (
-            <div className="flex gap-3 flex-shrink-0 pt-1">
-              <button onClick={() => onEdit(item)} className="text-gray-300 hover:text-blue-400" aria-label="編輯"><Pencil size={18} /></button>
-              <button onClick={() => onDelete(item)} className="text-gray-300 hover:text-red-400" aria-label="刪除"><Trash2 size={18} /></button>
-            </div>
-          )}
+          <h2 className="text-lg font-semibold leading-tight truncate flex-1 min-w-0">{item.label}</h2>
+          {badgeEl}
+          {adminEl}
         </div>
 
         {item.locate && (
@@ -167,30 +205,7 @@ export default function ItemCard({ item, onEdit, onDelete, isAdmin = false }) {
           </>
         )}
       </div>
-
-      {/* Lightbox 大圖 */}
-      {showFull && (
-        <div
-          className="fixed inset-0 bg-black bg-opacity-90 flex items-center justify-center z-50 p-4"
-          onClick={() => setShowFull(false)}
-        >
-          <div
-            ref={fullRef}
-            className="relative w-full max-w-[90vw] max-h-[90vh] flex overflow-x-auto scroll-smooth snap-x snap-mandatory hide-scrollbar"
-            onScroll={handleScroll(setImgIndex)}
-            onClick={(e) => e.stopPropagation()}
-          >
-            {images.map((src, idx) => (
-              <img
-                key={idx}
-                src={src}
-                alt={`${item.label}-full-${idx}`}
-                className="flex-shrink-0 w-full max-h-[90vh] m-auto object-contain snap-start"
-              />
-            ))}
-          </div>
-        </div>
-      )}
+      {lightbox}
     </div>
   );
 }

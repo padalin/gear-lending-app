@@ -10,6 +10,13 @@ function App() {
   const [items, setItems] = useState([]);
   const [expandedCategories, setExpandedCategories] = useState({});
   const [searchTerm, setSearchTerm] = useState("");
+  const [view, setView] = useState(() => {
+    try { return localStorage.getItem("gearView") || "grid"; } catch (_) { return "grid"; }
+  });
+  const changeView = (v) => {
+    setView(v);
+    try { localStorage.setItem("gearView", v); } catch (_) {}
+  };
 
   const categoryOrder = [
     "EG",
@@ -97,31 +104,36 @@ function App() {
     <div className="min-h-screen bg-gray-900 text-gray-100">
       <Navbar />
       <main className="pt-20 px-4 max-w-6xl mx-auto pb-24">
-        <h1 className="text-2xl font-bold mb-4">Gear List</h1>
-
-        <div className="flex gap-4 mb-6 flex-wrap">
-          <Link
-            to="/borrow"
-            className="bg-black text-white border border-gray-600 hover:bg-gray-700 px-4 py-2 rounded shadow"
-          >
-            借器材
-          </Link>
-          <Link
-            to="/return"
-            className="bg-black text-white border border-gray-600 hover:bg-gray-700 px-4 py-2 rounded shadow"
-          >
-            還器材
-          </Link>
+        <div className="flex items-center justify-between gap-3 mb-3">
+          <h1 className="text-xl font-bold">Gear List</h1>
+          <div className="flex gap-2 flex-shrink-0">
+            <Link to="/borrow" className="bg-black text-white border border-gray-600 hover:bg-gray-700 px-3 py-1.5 text-sm rounded">借器材</Link>
+            <Link to="/return" className="bg-black text-white border border-gray-600 hover:bg-gray-700 px-3 py-1.5 text-sm rounded">還器材</Link>
+          </div>
         </div>
 
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
-        <input
-          type="text"
-          placeholder="搜尋器材名稱、分類、品牌、位置、備註"
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-          className="w-full sm:max-w-xs px-4 py-2 border border-gray-600 rounded bg-gray-800 text-white placeholder-gray-400"
-        />
+        <div className="flex items-center gap-2 mb-4">
+          <input
+            type="text"
+            placeholder="搜尋器材…"
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="flex-1 min-w-0 px-3 py-2 text-sm border border-gray-600 rounded bg-gray-800 text-white placeholder-gray-400"
+          />
+          <div className="inline-flex flex-shrink-0 border border-gray-600 rounded overflow-hidden">
+            <button
+              onClick={() => changeView("list")}
+              className={`px-3 py-2 text-sm ${view === "list" ? "bg-blue-600 text-white" : "bg-gray-800 text-gray-300 hover:bg-gray-700"}`}
+            >
+              列表
+            </button>
+            <button
+              onClick={() => changeView("grid")}
+              className={`px-3 py-2 text-sm ${view === "grid" ? "bg-blue-600 text-white" : "bg-gray-800 text-gray-300 hover:bg-gray-700"}`}
+            >
+              大圖
+            </button>
+          </div>
         </div>
 
         {sortedGroupedEntries.map(([cat, list]) => (
@@ -131,6 +143,7 @@ function App() {
             items={list}
             expanded={expandedCategories[cat]}
             onToggle={() => toggleCategory(cat)}
+            view={view}
           />
         ))}
       </main>
