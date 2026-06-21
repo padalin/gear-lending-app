@@ -372,7 +372,7 @@ const filteredDetails = details.filter((d) => {
     <>
       <Navbar />
       <main className="pt-16 px-2 sm:px-4 w-full max-w-[90rem] mx-auto bg-black min-h-screen">
-        <div className="p-6 text-white font-mono">
+        <div className="p-6 text-white">
           <h1 className="text-2xl font-bold mb-4">管理員後台</h1>
           <div className="mb-4 flex flex-col sm:flex-row gap-2 sm:gap-4">
             <button onClick={() => handleSwitchView("summary")} className={`px-4 py-2 rounded ${view === "summary" ? "bg-blue-600 text-white" : "bg-black text-white border border-gray-600 hover:bg-gray-700"}`}>

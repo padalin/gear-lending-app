@@ -161,7 +161,7 @@ function PhotoCard({ photo, items, onAssign, onRemove, selected, onToggleSelect 
   );
 }
 
-export default function BulkPhotoPage() {
+export default function BulkPhotoPage({ embedded = false }) {
   const navigate = useNavigate();
   const [items, setItems] = useState([]);
   const [loadingItems, setLoadingItems] = useState(true);
@@ -343,13 +343,15 @@ export default function BulkPhotoPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-950 text-white">
-      <Navbar />
-      <main className="pt-20 px-4 max-w-5xl mx-auto pb-32">
-        <h1 className="text-2xl font-bold mb-2">批次照片上架</h1>
-        <button onClick={() => navigate("/admin/items")} className="mb-4 text-gray-300 hover:text-white hover:underline">
-          ← 返回器材管理
-        </button>
+    <div className={embedded ? "text-white" : "min-h-screen bg-gray-950 text-white"}>
+      {!embedded && <Navbar />}
+      <main className={embedded ? "pb-32" : "pt-20 px-4 max-w-5xl mx-auto pb-32"}>
+        {!embedded && <h1 className="text-2xl font-bold mb-2">批次照片上架</h1>}
+        {!embedded && (
+          <button onClick={() => navigate("/admin/items")} className="mb-4 text-gray-300 hover:text-white hover:underline">
+            ← 返回器材管理
+          </button>
+        )}
 
         <div className="text-sm text-gray-400 mb-4 leading-relaxed">
           拖一批照片進來 → 系統自動轉檔(含 HEIC)、產生預覽。每張用搜尋指定到器材；
@@ -456,7 +458,7 @@ export default function BulkPhotoPage() {
           </div>
         </div>
       )}
-      <Footer />
+      {!embedded && <Footer />}
     </div>
   );
 }

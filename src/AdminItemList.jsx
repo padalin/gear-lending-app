@@ -167,29 +167,11 @@ function AdminItemList() {
             <button
               onClick={() => {
                 localStorage.setItem('adminItemsScrollPosition', window.scrollY.toString());
-                window.location.href = "/admin/bulk-add";
-              }}
-              className="bg-black text-white border border-gray-600 hover:bg-gray-700 px-4 py-2 rounded shadow"
-            >
-              批次新增
-            </button>
-            <button
-              onClick={() => {
-                localStorage.setItem('adminItemsScrollPosition', window.scrollY.toString());
-                window.location.href = "/admin/bulk-edit";
-              }}
-              className="bg-black text-white border border-gray-600 hover:bg-gray-700 px-4 py-2 rounded shadow"
-            >
-              批次編輯
-            </button>
-            <button
-              onClick={() => {
-                localStorage.setItem('adminItemsScrollPosition', window.scrollY.toString());
-                window.location.href = "/admin/bulk-photos";
+                window.location.href = "/admin/bulk";
               }}
               className="bg-black text-white border border-blue-600 hover:bg-blue-700 px-4 py-2 rounded shadow"
             >
-              批次照片
+              批次管理
             </button>
           </div>
         </div>

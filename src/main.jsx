@@ -22,6 +22,7 @@ import { AuthProvider } from "./AuthContext.jsx";
 import BulkAddPage from "./BulkAddPage.jsx";
 import BulkEditPage from "./BulkEditPage.jsx";
 import BulkPhotoPage from "./BulkPhotoPage.jsx";
+import BulkManagePage from "./BulkManagePage.jsx";
 import './styles/global.css';
 
 ReactDOM.createRoot(document.getElementById("root")).render(
@@ -51,6 +52,7 @@ ReactDOM.createRoot(document.getElementById("root")).render(
           <Route path="/admin/items/edit/:id" element={<ProtectedRoute><EditItemPage /></ProtectedRoute>} />
           <Route path="/admin/templates" element={<ProtectedRoute><TemplateEditorPage /></ProtectedRoute>} />
           <Route path="/admin/bulk-photos" element={<ProtectedRoute><BulkPhotoPage /></ProtectedRoute>} />
+          <Route path="/admin/bulk" element={<ProtectedRoute><BulkManagePage /></ProtectedRoute>} />
         </Routes>
       </AuthProvider>
     </BrowserRouter>

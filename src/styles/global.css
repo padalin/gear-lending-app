@@ -5,6 +5,11 @@ html,
 body {
   background-color: #0f172a; /* Tailwind slate-900 */
   color: white;
+  /* 易讀的系統無襯線字型（含中文 PingFang / Noto），取代難讀的等寬字 */
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue",
+    "PingFang TC", "Noto Sans TC", "Microsoft JhengHei", Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
 /* 表單欄位元件：強制深色 */
@@ -15,6 +20,7 @@ button {
   background-color: #1e293b;  /* Tailwind slate-800 */
   color: white;
   border-color: #475569;      /* Tailwind slate-600 */
+  font-family: inherit;       /* 表單元件沿用易讀字型 */
 }
 
 /* Placeholder 文字：較淡灰色 */
