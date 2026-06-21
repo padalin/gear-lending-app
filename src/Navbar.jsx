@@ -26,15 +26,15 @@ function Navbar() {
   return (
     <>
       <nav className="fixed top-0 left-0 w-full bg-gray-950 border-b border-gray-700 z-50">
-        <div className="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between">
-          <Link to="/" className="text-xl font-mono font-bold text-gray-100">
+        <div className="max-w-6xl mx-auto px-4 py-2.5 flex items-center justify-between gap-2">
+          <Link to="/" className="text-base sm:text-xl font-bold text-gray-100 whitespace-nowrap truncate min-w-0">
             Cheerhave Gears
           </Link>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-shrink-0">
             <button
               onClick={toggleMap}
-              className="text-sm px-4 py-2 rounded border border-gray-600 text-gray-100 hover:bg-gray-800 transition flex items-center gap-1"
+              className="text-sm px-2.5 py-1.5 rounded border border-gray-600 text-gray-100 hover:bg-gray-800 transition flex items-center gap-1"
             >
               <Map size={16} />
               <span>地圖</span>
@@ -44,13 +44,13 @@ function Navbar() {
               <>
                 <Link
                   to="/admin"
-                  className="text-sm px-4 py-2 rounded border border-gray-600 text-gray-100 hover:bg-gray-800 transition"
+                  className="text-sm px-2.5 py-1.5 rounded border border-gray-600 text-gray-100 hover:bg-gray-800 transition"
                 >
                   管理
                 </Link>
                 <button
                   onClick={handleLogout}
-                  className="text-sm px-4 py-2 rounded border border-gray-600 text-gray-100 hover:bg-gray-800 transition"
+                  className="text-sm px-2.5 py-1.5 rounded border border-gray-600 text-gray-100 hover:bg-gray-800 transition"
                 >
                   登出
                 </button>
@@ -58,7 +58,7 @@ function Navbar() {
             ) : (
               <Link
                 to="/login"
-                className="text-sm px-4 py-2 rounded border border-gray-600 text-gray-100 hover:bg-gray-800 transition"
+                className="text-sm px-2.5 py-1.5 rounded border border-gray-600 text-gray-100 hover:bg-gray-800 transition"
               >
                 登入
               </Link>

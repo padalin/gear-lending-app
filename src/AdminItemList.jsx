@@ -12,6 +12,13 @@ function AdminItemList() {
   const [showModal, setShowModal] = useState(false);
   const [expandedCategories, setExpandedCategories] = useState({});
   const [searchTerm, setSearchTerm] = useState("");
+  const [view, setView] = useState(() => {
+    try { return localStorage.getItem("adminGearView") || "grid"; } catch (_) { return "grid"; }
+  });
+  const changeView = (v) => {
+    setView(v);
+    try { localStorage.setItem("adminGearView", v); } catch (_) {}
+  };
 
   const categoryOrder = [
     "EG",
@@ -183,13 +190,29 @@ function AdminItemList() {
           ← 返回管理員後台
         </button>
 
-        <input
-          type="text"
-          placeholder="搜尋器材名稱、分類、品牌、位置..."
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-          className="w-full mb-6 px-4 py-2 border border-gray-600 rounded bg-gray-800 text-white placeholder-gray-400"
-        />
+        <div className="flex items-center gap-2 mb-6">
+          <input
+            type="text"
+            placeholder="搜尋器材名稱、分類、品牌、位置..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="flex-1 min-w-0 px-4 py-2 border border-gray-600 rounded bg-gray-800 text-white placeholder-gray-400"
+          />
+          <div className="inline-flex flex-shrink-0 border border-gray-600 rounded overflow-hidden">
+            <button
+              onClick={() => changeView("list")}
+              className={`px-3 py-2 text-sm ${view === "list" ? "bg-blue-600 text-white" : "bg-gray-800 text-gray-300 hover:bg-gray-700"}`}
+            >
+              列表
+            </button>
+            <button
+              onClick={() => changeView("grid")}
+              className={`px-3 py-2 text-sm ${view === "grid" ? "bg-blue-600 text-white" : "bg-gray-800 text-gray-300 hover:bg-gray-700"}`}
+            >
+              大圖
+            </button>
+          </div>
+        </div>
 
         {sortedGroupedEntries.map(([cat, list]) => (
           <CategorySection
@@ -201,6 +224,7 @@ function AdminItemList() {
             isAdmin
             onEdit={handleEdit}
             onDelete={handleDelete}
+            view={view}
           />
         ))}
 
