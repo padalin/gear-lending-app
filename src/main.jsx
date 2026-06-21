@@ -21,6 +21,7 @@ import TemplateEditorPage from "./pages/TemplateEditorPage.jsx";  // ← 加這�
 import { AuthProvider } from "./AuthContext.jsx";
 import BulkAddPage from "./BulkAddPage.jsx";
 import BulkEditPage from "./BulkEditPage.jsx";
+import BulkPhotoPage from "./BulkPhotoPage.jsx";
 import './styles/global.css';
 
 ReactDOM.createRoot(document.getElementById("root")).render(
@@ -49,6 +50,7 @@ ReactDOM.createRoot(document.getElementById("root")).render(
           <Route path="/admin/items/new" element={<ProtectedRoute><NewItemForm /></ProtectedRoute>} />
           <Route path="/admin/items/edit/:id" element={<ProtectedRoute><EditItemPage /></ProtectedRoute>} />
           <Route path="/admin/templates" element={<ProtectedRoute><TemplateEditorPage /></ProtectedRoute>} />
+          <Route path="/admin/bulk-photos" element={<ProtectedRoute><BulkPhotoPage /></ProtectedRoute>} />
         </Routes>
       </AuthProvider>
     </BrowserRouter>
